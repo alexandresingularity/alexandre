@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Gerador de Links Rastreáveis</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-6">
+  <div class="max-w-3xl mx-auto bg-white rounded-xl shadow p-6">
+    <h1 class="text-2xl font-bold mb-4">Gerador de Links Rastreáveis (1 HTML + 1 PY)</h1>
+
+    <form id="createForm" class="mb-6 grid gap-2 md:grid-cols-3">
+      <input id="linkReal" type="url" required placeholder="Link final (ex: https://example.com)" class="col-span-2 border p-2 rounded" />
+      <input id="chave" type="text" required placeholder="Chave curta (ex: promo1)" class="border p-2 rounded" />
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded md:col-span-3">Gerar link curto</button>
+    </form>
+
+    <div id="resultado" class="mb-4 text-sm text-gray-700"></div>
+
+    <h2 class="text-lg font-semibold mt-6 mb-2">Cliques (atualiza automaticamente)</h2>
+    <div class="overflow-x-auto">
+      <table class="table-auto w-full border-collapse border border-gray-300">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="border px-2 py-1">Hora</th>
+            <th class="border px-2 py-1">Chave</th>
+            <th class="border px-2 py-1">IP</th>
+            <th class="border px-2 py-1">User-Agent</th>
+            <th class="border px-2 py-1">Link</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+const form = document.getElementById('createForm');
+const resultado = document.getElementById('resultado');
+const tabelaBody = document.getElementById('tabela-body');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const link_real = document.getElementById('linkReal').value.trim();
+  const chave = document.getElementById('chave').value.trim();
+  if (!link_real || !chave) return alert('Preencha link e chave.');
+
+  try {
+    const res = await fetch('/create', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({link_real, chave})
+    });
+    const j = await res.json();
+    if (!j.ok) {
+      resultado.innerHTML = `<span class="text-red-600">Erro: ${j.error}</span>`;
+      return;
+    }
+    const full = location.origin + j.short;
+    resultado.innerHTML = `Link criado: <a href="${j.short}" target="_blank" class="text-blue-600 underline">${full}</a>
+      <button id="copyBtn" class="ml-2 bg-green-600 text-white px-2 py-1 rounded">Copiar</button>`;
+    document.getElementById('copyBtn').addEventListener('click', () => {
+      navigator.clipboard.writeText(full).then(()=> alert('Link copiado!'));
+    });
+    // limpa inputs opcionais:
+    // document.getElementById('linkReal').value = '';
+    // document.getElementById('chave').value = '';
+  } catch (err) {
+    resultado.innerHTML = `<span class="text-red-600">Erro ao criar: ${err}</span>`;
+  }
+});
+
+async function atualizarTabela() {
+  try {
+    const res = await fetch('/cliques');
+    const dados = await res.json();
+    tabelaBody.innerHTML = '';
+    dados.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="border px-2 py-1">${c.ts}</td>
+                      <td class="border px-2 py-1">${c.chave}</td>
+                      <td class="border px-2 py-1">${c.ip}</td>
+                      <td class="border px-2 py-1"><div style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.ua}</div></td>
+                      <td class="border px-2 py-1"><a href="${c.link}" target="_blank" class="text-blue-600 underline">${c.link}</a></td>`;
+      tabelaBody.appendChild(tr);
+    });
+  } catch (e) {
+    console.warn('Erro fetch /cliques', e);
+  }
+}
+
+// atualiza a cada 2s (enquanto a página estiver aberta)
+setInterval(atualizarTabela, 2000);
+window.addEventListener('load', atualizarTabela);
+</script>
+</body>
+</html>
