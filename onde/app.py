@@ -4,7 +4,7 @@ import threading
 
 app = Flask(__name__)
 
-links_rastreaveis = {}  # chave -> {'real': url real, 'cliques': []}
+links_rastreaveis = {}
 lock = threading.Lock()
 cliques = []
 
@@ -26,7 +26,9 @@ def home():
             if chave_custom in links_rastreaveis:
                 return "Essa chave já existe. Escolha outra.", 400
             links_rastreaveis[chave_custom] = {"real": link_real, "cliques": []}
-            link_compartilhavel = f"/r/{chave_custom}"
+
+            # CORREÇÃO: link completo com domínio público
+            link_compartilhavel = f"{request.host_url}r/{chave_custom}"
 
     return render_template("index.html", link_compartilhavel=link_compartilhavel, cliques=cliques)
 
@@ -52,4 +54,4 @@ def cliques_json():
         return jsonify(cliques)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)
