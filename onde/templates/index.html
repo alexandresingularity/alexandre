@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Rastreador de Links</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+<div class="max-w-3xl mx-auto bg-white shadow p-6 rounded">
+<h1 class="text-2xl font-bold mb-4">Rastreador de Links</h1>
+
+<div class="mb-4">
+  <input id="link_real" type="url" placeholder="Digite a URL real" class="border p-2 w-full mb-2" />
+  <input id="chave" type="text" placeholder="Chave curta (ex: promo1)" class="border p-2 w-full mb-2" />
+  <button onclick="criarLink()" class="bg-blue-600 text-white px-4 py-2 rounded">Gerar link curto</button>
+</div>
+
+<div id="resultado" class="mb-4 text-red-600"></div>
+
+<h2 class="text-xl font-bold mb-2">Cliques (atualiza automaticamente)</h2>
+<div class="overflow-x-auto">
+<table class="table-auto w-full border-collapse border border-gray-300">
+<thead class="bg-gray-200">
+<tr>
+<th class="border px-2 py-1">Hora</th>
+<th class="border px-2 py-1">Chave</th>
+<th class="border px-2 py-1">IP</th>
+<th class="border px-2 py-1">User-Agent</th>
+<th class="border px-2 py-1">Link</th>
+</tr>
+</thead>
+<tbody id="tabela-body"></tbody>
+</table>
+</div>
+</div>
+
+<script>
+async function criarLink() {
+    const link_real = document.getElementById("link_real").value.trim();
+    const chave = document.getElementById("chave").value.trim();
+    if(!link_real || !chave) return alert("Preencha link e chave!");
+
+    try {
+        const res = await fetch("/create", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({link_real, chave})
+        });
+        const dados = await res.json();
+        if(dados.ok) {
+            const full = location.origin + dados.short;
+            document.getElementById("resultado").innerHTML = `
+                Link criado: <input class="border p-2 w-full mb-2" value="${full}" readonly />
+                <a href="${full}" target="_blank" class="text-blue-600 underline">Abrir link</a>
+            `;
+        } else {
+            document.getElementById("resultado").innerText = "Erro: " + dados.error;
+        }
+    } catch(e) {
+        document.getElementById("resultado").innerText = "Erro ao criar: " + e;
+    }
+}
+
+async function atualizarTabela() {
+    try {
+        const res = await fetch("/cliques");
+        const dados = await res.json();
+        const tbody = document.getElementById("tabela-body");
+        tbody.innerHTML = "";
+        dados.forEach(c => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td class="border px-2 py-1">${c.ts}</td>
+                            <td class="border px-2 py-1">${c.chave}</td>
+                            <td class="border px-2 py-1">${c.ip}</td>
+                            <td class="border px-2 py-1"><div style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.ua}</div></td>
+                            <td class="border px-2 py-1"><a href="${c.link}" target="_blank" class="text-blue-600 underline">${c.link}</a></td>`;
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        console.warn("Erro fetch /cliques", e);
+    }
+}
+
+setInterval(atualizarTabela, 2000);
+window.addEventListener("load", atualizarTabela);
+</script>
+</body>
+</html>
