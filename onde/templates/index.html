@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>Rastreador de Links Profissional</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+async function atualizarTabela() {
+    const res = await fetch('/cliques');
+    const dados = await res.json();
+    const tbody = document.getElementById('tabela-body');
+    tbody.innerHTML = '';
+    dados.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="border px-2 py-1">${c.ts}</td>
+                        <td class="border px-2 py-1">${c.ip}</td>
+                        <td class="border px-2 py-1">${c.ua}</td>
+                        <td class="border px-2 py-1">${c.link}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+setInterval(atualizarTabela, 3000);
+
+function copyLink() {
+    var copyText = document.getElementById("linkCopy");
+    copyText.select();
+    document.execCommand("copy");
+    alert("Link copiado!");
+}
+</script>
+</head>
+<body class="bg-gray-100 p-8">
+<h1 class="text-3xl font-bold mb-6">Rastreador de Links Profissional</h1>
+
+<form method="POST" class="mb-6 flex flex-col md:flex-row gap-2">
+    <input type="url" name="link_real" placeholder="Digite o link que quer compartilhar" class="border p-2 flex-1" required>
+    <input type="text" name="chave_custom" placeholder="Escolha o nome do link (ex: youtube)" class="border p-2 flex-1" required>
+    <button type="submit" class="bg-blue-500 text-white px-4 py-2">Gerar Link</button>
+</form>
+
+{% if link_compartilhavel %}
+<p class="mb-2">Link encurtado para compartilhar:</p>
+<input type="text" value="{{ link_compartilhavel }}" id="linkCopy" class="border p-2 w-full mb-2" readonly>
+<button onclick="copyLink()" class="bg-green-500 text-white px-4 py-2 mb-4">Copiar Link</button>
+<a href="{{ link_compartilhavel }}" target="_blank" class="text-blue-600 underline">Abrir Link</a>
+{% endif %}
+
+<h2 class="text-2xl font-bold mt-6 mb-2">Cliques Registrados</h2>
+<div class="overflow-x-auto">
+<table class="table-auto border-collapse border border-gray-400 w-full">
+<thead>
+<tr class="bg-gray-200">
+<th class="border px-2 py-1">Hora</th>
+<th class="border px-2 py-1">IP</th>
+<th class="border px-2 py-1">User-Agent</th>
+<th class="border px-2 py-1">Link</th>
+</tr>
+</thead>
+<tbody id="tabela-body"></tbody>
+</table>
+</div>
+</body>
+</html>
