@@ -1,0 +1,2906 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Software de Animação</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        .panel {
+            background-color: #2b2b2b;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            border: 1px solid #3d3d3d;
+        }
+
+        #canvas-container {
+            position: relative;
+            background-color: #1a1a1a;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #drawing-canvas, #onion-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            object-fit: contain;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #drawing-canvas {
+            cursor: crosshair;
+        }
+        
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #2b2b2b;
+            border-radius: 10px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 10px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+
+        .vertical-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            writing-mode: bt-lr;
+            -webkit-appearance: slider-vertical;
+            appearance: slider-vertical;
+            width: 10px;
+            height: 100px;
+            background: #4a4a4a;
+            outline: none;
+            border-radius: 5px;
+            transition: background 0.2s ease;
+        }
+        .vertical-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            background: #e0e0e0;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #3d3d3d;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            transition: transform 0.1s ease;
+        }
+        .vertical-slider::-webkit-slider-thumb:hover {
+            background: #fff;
+            transform: scale(1.1);
+        }
+        .vertical-slider::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            background: #e0e0e0;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #3d3d3d;
+        }
+        
+        .icon-btn {
+            transition: all 0.15s ease-in-out;
+        }
+        .icon-btn:hover {
+            background-color: #3f3f46;
+            transform: scale(1.05);
+        }
+        .icon-btn:active {
+            transform: scale(0.95);
+        }
+        .icon-btn.active {
+            background-color: #6366f1;
+            color: #fff;
+        }
+        
+        .timeline-frame {
+            transition: all 0.2s ease-in-out;
+            touch-action: none; /* Essencial para Pointer Events */
+        }
+        .timeline-frame.active-frame {
+            border-color: #6366f1 !important;
+            transform: scale(1.08);
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+        .timeline-frame:hover {
+            transform: scale(1.05);
+            border-color: #4f46e5;
+        }
+
+        .timeline-frame.drag-over {
+            border-color: #4CAF50 !important;
+        }
+
+        .layer-item.dragging {
+            opacity: 0.4;
+        }
+        #audio-track-container {
+            position: relative;
+            height: 50px;
+            background-color: #3d3d3d;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        #audio-timeline-wrapper {
+            position: relative;
+            height: 100%;
+        }
+        
+        .audio-clip {
+            position: absolute;
+            height: 100%;
+            cursor: move;
+            box-sizing: border-box;
+            background: rgba(144, 238, 144, 0.2);
+            border: 1px solid rgba(144, 238, 144, 0.5);
+            overflow: hidden;
+            border-radius: 6px;
+        }
+        .audio-clip.dragging {
+             cursor: grabbing;
+        }
+        .waveform-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        .resize-handle {
+            width: 10px;
+            height: 100%;
+            background-color: rgba(144, 238, 144, 0.8);
+            cursor: ew-resize;
+            z-index: 10;
+            position: absolute;
+            top: 0;
+        }
+        .resize-handle.left {
+            left: 0;
+            border-top-left-radius: 5px;
+            border-bottom-left-radius: 5px;
+        }
+        .resize-handle.right {
+            right: 0;
+            border-top-right-radius: 5px;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .delete-audio-btn {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform: translate(-50%, -50%);
+            background-color: rgba(239, 68, 68, 0.8);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            border: 1px solid white;
+            z-index: 20;
+            transition: transform 0.1s ease;
+        }
+        .delete-audio-btn:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        .delete-audio-btn:active {
+            transform: translate(-50%, -50%) scale(0.9);
+        }
+        
+    </style>
+</head>
+<body class="flex flex-col h-screen p-4 md:p-6">
+
+    <header class="flex-shrink-0 flex justify-between items-center mb-4">
+        <div class="flex items-center space-x-4">
+            <h1 class="text-2xl font-bold text-white" style="font-family: 'Caveat', cursive;">Alexandre Draw</h1>
+            <div class="relative">
+                <button id="file-menu-btn" class="icon-btn px-4 py-2 rounded-lg bg-zinc-700 text-sm font-medium">Arquivo</button>
+                <div id="file-menu" class="hidden absolute top-full mt-2 z-50 panel w-56 p-2 flex flex-col space-y-1">
+                    <button id="save-project-btn" class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-zinc-600 transition-colors">Salvar Projeto...</button>
+                    <button id="load-project-btn" class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-zinc-600 transition-colors">Carregar Projeto...</button>
+                    <div class="border-t border-zinc-600 my-1"></div>
+                    <button id="import-image-btn" class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-zinc-600 transition-colors">Importar Imagem...</button>
+                    <button id="import-audio-btn" class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-zinc-600 transition-colors">Importar Áudio...</button>
+                    <div class="border-t border-zinc-600 my-1"></div>
+                    
+                    <button id="export-png-btn" class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-zinc-600 transition-colors">Exportar como PNGs...</button>
+                    <button id="export-transparent-png-btn" class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-zinc-600 transition-colors">Exportar PNGs Transparentes...</button>
+                    <div class="border-t border-zinc-600 my-1"></div>
+                    <button id="export-video-btn" class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-zinc-600 transition-colors">Exportar como Vídeo...</button>
+                    <button id="export-transparent-video-btn" class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-zinc-600 transition-colors">Exportar Vídeo Transparente...</button>
+                    <button id="export-video-audio-btn" class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-zinc-600 transition-colors">Exportar como Vídeo (com Áudio)...</button>
+                    <button id="export-transparent-video-audio-btn" class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-zinc-600 transition-colors">Exportar Vídeo Transparente (com Áudio)...</button>
+                </div>
+                <input type="file" id="load-project-input" class="hidden" accept=".adproj">
+                <input type="file" id="import-image-input" class="hidden" accept="image/*">
+                <input type="file" id="import-audio-input" class="hidden" accept="audio/*" multiple>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="relative">
+                <button id="brushes-panel-btn" class="icon-btn p-2 rounded-lg bg-zinc-700" title="Pincéis">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg>
+                </button>
+            </div>
+            <div class="relative">
+                <button id="layers-panel-btn" class="icon-btn p-2 rounded-lg bg-zinc-700" title="Camadas">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+            </div>
+            <div id="color-picker-wrapper" class="relative">
+                <div id="color-picker-container" class="w-10 h-10 rounded-full border-2 border-zinc-500 cursor-pointer shadow-md transition-transform duration-100 ease-in-out hover:scale-105 active:scale-95" style="background-color: #000000;"></div>
+                <input type="color" id="color-picker" value="#000000" class="absolute left-1/2 -ml-6 mt-2 opacity-0 pointer-events-none w-12 h-12">
+            </div>
+        </div>
+    </header>
+
+    <div id="brushes-panel" class="hidden absolute top-20 right-20 z-50 panel w-72 p-4 flex flex-col space-y-4 max-h-[70vh]">
+        <div class="flex justify-between items-center flex-shrink-0">
+            <h2 class="text-lg font-semibold text-indigo-300">Pincéis</h2>
+        </div>
+        <div id="brushes-list" class="flex-grow flex flex-col space-y-2 custom-scroll overflow-y-auto pr-2 min-h-0">
+        </div>
+    </div>
+
+
+    <div id="layers-panel" class="hidden absolute top-20 right-6 z-50 panel w-72 p-4 flex flex-col space-y-4 max-h-[70vh]">
+        <div class="flex justify-between items-center flex-shrink-0">
+            <h2 class="text-lg font-semibold text-indigo-300">Camadas</h2>
+        </div>
+        <div id="layers-list" class="flex-grow space-y-2 custom-scroll overflow-y-auto pr-2 min-h-0">
+        </div>
+        <div class="flex-shrink-0">
+            <button id="add-layer-btn" class="w-full py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors duration-200">
+                Adicionar Camada
+            </button>
+        </div>
+    </div>
+
+
+    <main class="flex flex-col flex-grow space-y-2 min-h-0">
+        
+        <div class="flex flex-row flex-grow justify-center items-stretch space-x-6 min-h-0">
+            <aside class="panel flex flex-col items-center p-4 space-y-4">
+                <div class="flex flex-col items-center space-y-2">
+                    <label class="text-xs text-gray-400">Tamanho</label>
+                    <input type="range" id="brush-size" min="1" max="50" value="10" class="vertical-slider">
+                </div>
+
+                <div class="flex flex-col items-center justify-center py-2" title="Alternar Pincel / Borracha">
+                    <label for="tool-switch" class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="tool-switch" class="sr-only peer">
+                        <div class="w-9 h-5 bg-zinc-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+
+                <div class="flex flex-col items-center space-y-2">
+                    <label class="text-xs text-gray-400">Opacidade</label>
+                    <input type="range" id="brush-opacity" min="0" max="100" value="100" class="vertical-slider">
+                </div>
+                
+                <div class="border-t border-zinc-600 w-full my-2"></div>
+
+                <div class="flex flex-row items-center space-x-2">
+                    <button id="undo-btn" class="icon-btn p-1.5 rounded-full text-gray-300 bg-zinc-700" title="Desfazer (Ctrl+Z)">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.91 2.61L2 7v9h9l-3.61-3.61c1.51-1.23 3.47-1.99 5.61-1.99 3.86 0 7 3.14 7 7s-3.14 7-7 7a6.9 6.9 0 01-3.95-1.15l-1.42 1.42A8.95 8.95 0 0012.5 22c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/></svg>
+                    </button>
+                    <button id="redo-btn" class="icon-btn p-1.5 rounded-full text-gray-300 bg-zinc-700" title="Refazer (Ctrl+Y)">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.5 8c2.65 0 5.05.99 6.91 2.61L22 7v9h-9l3.61-3.61c-1.51-1.23-3.47-1.99-5.61-1.99-3.86 0-7 3.14-7 7s3.14 7 7 7a6.9 6.9 0 003.95-1.15l1.42 1.42A8.95 8.95 0 0111.5 22c-4.97 0-9-4.03-9-9s4.03-9 9-9z"/></svg>
+                    </button>
+                </div>
+
+            </aside>
+
+            <div id="canvas-container" class="flex-grow w-full flex justify-center items-center">
+                <div id="canvas-wrapper" class="relative w-full h-full max-w-[1920px] max-h-[1080px]">
+                    <canvas id="drawing-canvas" class="z-10"></canvas>
+                    <canvas id="onion-canvas" class="absolute top-0 left-0 z-20 pointer-events-none"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full panel p-3 flex flex-col flex-shrink-0">
+            <div class="flex items-center justify-center space-x-4 pb-3 mb-3 border-b border-zinc-700">
+                <div class="flex items-center space-x-2">
+                    <button id="eyedropper-btn" class="icon-btn p-2 rounded-full text-gray-300 bg-zinc-700" title="Conta-Gotas">
+                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2.625c2.28 2.26 6 6.55 6 10.375 0 3.52-2.686 6-6 6s-6-2.48-6-6c0-3.82 3.72-8.11 6-10.375z"></path>
+                        </svg>
+                    </button>
+                    <button id="paint-bucket-btn" class="icon-btn p-2 rounded-full text-gray-300 bg-zinc-700" title="Balde de Tinta">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5.4 19.83L6.5 21.5L9 21.5L10 20.5L12.5 23L15 20.5L16 21.5L18.5 21.5L19.6 19.83L12.5 12.75L5.4 19.83M20 7A2 2 0 0 0 18 5H6A2 2 0 0 0 4 7V11C4 11.36 4.07 11.72 4.2 12.05L12.5 3.73L20.8 12.05C20.93 11.72 21 11.36 21 11V7H20Z" /></svg>
+                    </button>
+                    <div class="flex items-center space-x-1">
+                        <input type="range" id="fill-tolerance-slider" min="0" max="100" value="40" class="w-20 h-2 rounded-lg bg-zinc-600 cursor-pointer appearance-none" title="Tolerância do Preenchimento">
+                    </div>
+                    <div class="w-px h-6 bg-zinc-600 mx-1"></div>
+                    <button id="selection-tool-btn" class="icon-btn p-2 rounded-full text-gray-300 bg-zinc-700" title="Ferramenta de Seleção">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke-dasharray="3 3" d="M12 4.5C16.1421 4.5 19.5 7.85786 19.5 12C19.5 16.1421 16.1421 19.5 12 19.5C7.85786 19.5 4.5 16.1421 4.5 12C4.5 7.85786 7.85786 4.5 12 4.5Z"></path>
+                        </svg>
+                    </button>
+                    <button id="onion-skin-btn" class="icon-btn p-2 rounded-full text-gray-300 bg-zinc-700" title="Ativar/Desativar Onion Skinning">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 13c-3.16 0-6.09-1.39-8.11-3.61C4.78 11.23 7.85 10 12 10s7.22 1.23 8.11 2.39c-2.02 2.22-4.95 3.61-8.11 3.61zm0-10a4.5 4.5 0 100 9 4.5 4.5 0 010-9zm0 7a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/></svg>
+                    </button>
+                    <input type="range" id="onion-opacity-slider" min="0" max="100" value="50" class="w-24 h-2 rounded-lg bg-zinc-600 cursor-pointer appearance-none">
+                </div>
+                
+                <div class="flex items-center space-x-2 mx-4">
+                    <button id="flip-horizontal-btn" class="icon-btn p-2 rounded-full text-gray-300 bg-zinc-700" title="Virar Horizontalmente">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"></path></svg>
+                    </button>
+                    <button id="copy-selection-btn" class="icon-btn p-2 rounded-full text-gray-300 bg-zinc-700" title="Copiar Seleção (Ctrl+C)">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>
+                    </button>
+                    <button id="play-pause-btn" class="icon-btn p-3 rounded-full text-gray-300 bg-indigo-600 hover:bg-indigo-700" title="Reproduzir / Pausar (Espaço)">
+                        <svg id="play-icon" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <svg id="pause-icon" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>
+                    <button id="add-frame-btn" class="icon-btn p-2 rounded-full text-gray-300 bg-zinc-700" title="Adicionar Quadro">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
+                    <button id="duplicate-frame-btn" class="icon-btn p-2 rounded-full text-gray-300 bg-zinc-700" title="Duplicar Quadro">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M11 5H13V8H16V10H13V13H11V10H8V8H11V5M6 2C4.89543 2 4 2.89543 4 4V18C4 19.1046 4.89543 20 6 20H18C19.1046 20 20 19.1046 20 18V9H18V18H6V4H13V2H6Z"/></svg>
+                    </button>
+                    <button id="delete-frame-btn" class="icon-btn p-2 rounded-full text-gray-300 bg-zinc-700" title="Apagar Quadro">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <label for="fps-slider" class="text-sm font-medium text-gray-400">FPS:</label>
+                    <input type="range" id="fps-slider" min="1" max="30" value="12" class="w-24 h-2 rounded-lg bg-zinc-600 cursor-pointer appearance-none">
+                    <span id="fps-value" class="text-sm font-mono bg-zinc-700 px-2 py-1 rounded-md">12</span>
+                </div>
+            </div>
+            <div id="timeline-frames" class="flex items-center space-x-2 custom-scroll overflow-x-auto pt-2">
+            </div>
+            <div id="audio-track-container" class="mt-2 custom-scroll">
+                <div id="audio-timeline-wrapper">
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[101]">
+        <div class="panel p-6 rounded-lg max-w-sm w-full flex flex-col space-y-4">
+            <h3 id="message-title" class="text-lg font-semibold text-white">Título</h3>
+            <p id="message-text" class="text-gray-300"></p>
+            <button id="message-ok-btn" class="w-full py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors duration-200">OK</button>
+        </div>
+    </div>
+    
+    <div id="loading-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100]">
+        <div class="panel p-6 rounded-lg flex flex-col items-center space-y-4">
+            <svg class="animate-spin h-8 w-8 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p id="loading-message" class="text-lg font-medium text-gray-300">Processando...</p>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        // Correção do bug de redimensionamento
+        if (window.top === window) {
+            window.resizeTo(screen.width, screen.height);
+            window.moveTo(0, 0);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const CANVAS_WIDTH = 1920;
+            const CANVAS_HEIGHT = 1080;
+
+            const canvasWrapper = document.getElementById('canvas-wrapper');
+            const resizeCanvas = () => {
+                const parent = canvasWrapper.parentElement;
+                const parentWidth = parent.clientWidth;
+                const parentHeight = parent.clientHeight;
+                const canvasRatio = CANVAS_WIDTH / CANVAS_HEIGHT;
+                const parentRatio = parentWidth / parentHeight;
+
+                if (parentRatio > canvasRatio) {
+                    canvasWrapper.style.height = `${parentHeight}px`;
+                    canvasWrapper.style.width = `${parentHeight * canvasRatio}px`;
+                } else {
+                    canvasWrapper.style.width = `${parentWidth}px`;
+                    canvasWrapper.style.height = `${parentWidth / canvasRatio}px`;
+                }
+            };
+
+            window.addEventListener('resize', resizeCanvas);
+            
+            setTimeout(() => {
+                resizeCanvas();
+            }, 100);
+
+            // DOM Elements
+            const mainCanvas = document.getElementById('drawing-canvas');
+            const onionCanvas = document.getElementById('onion-canvas');
+            const brushSizeSlider = document.getElementById('brush-size');
+            const brushOpacitySlider = document.getElementById('brush-opacity');
+            const colorPicker = document.getElementById('color-picker');
+            const colorPickerContainer = document.getElementById('color-picker-container');
+            const timelineFrames = document.getElementById('timeline-frames');
+            const playPauseBtn = document.getElementById('play-pause-btn');
+            const addFrameBtn = document.getElementById('add-frame-btn');
+            const duplicateFrameBtn = document.getElementById('duplicate-frame-btn');
+            const deleteFrameBtn = document.getElementById('delete-frame-btn');
+            const layersList = document.getElementById('layers-list');
+            const addLayerBtn = document.getElementById('add-layer-btn');
+            const onionSkinBtn = document.getElementById('onion-skin-btn');
+            const onionOpacitySlider = document.getElementById('onion-opacity-slider');
+            const undoBtn = document.getElementById('undo-btn');
+            const redoBtn = document.getElementById('redo-btn');
+            const layersPanelBtn = document.getElementById('layers-panel-btn');
+            const layersPanel = document.getElementById('layers-panel');
+            const brushesPanelBtn = document.getElementById('brushes-panel-btn');
+            const brushesPanel = document.getElementById('brushes-panel');
+            const brushesList = document.getElementById('brushes-list');
+            const fpsSlider = document.getElementById('fps-slider');
+            const fpsValue = document.getElementById('fps-value');
+            const selectionToolBtn = document.getElementById('selection-tool-btn');
+            const paintBucketBtn = document.getElementById('paint-bucket-btn');
+            const eyedropperBtn = document.getElementById('eyedropper-btn');
+            const toolSwitch = document.getElementById('tool-switch');
+            const fillToleranceSlider = document.getElementById('fill-tolerance-slider');
+            const copySelectionBtn = document.getElementById('copy-selection-btn');
+            const flipHorizontalBtn = document.getElementById('flip-horizontal-btn');
+            
+            // File Menu Elements
+            const fileMenuBtn = document.getElementById('file-menu-btn');
+            const fileMenu = document.getElementById('file-menu');
+            const saveProjectBtn = document.getElementById('save-project-btn');
+            const loadProjectBtn = document.getElementById('load-project-btn');
+            const loadProjectInput = document.getElementById('load-project-input');
+            const importImageBtn = document.getElementById('import-image-btn');
+            const importImageInput = document.getElementById('import-image-input');
+            const importAudioBtn = document.getElementById('import-audio-btn');
+            const importAudioInput = document.getElementById('import-audio-input');
+            const exportPngBtn = document.getElementById('export-png-btn');
+            const exportTransparentPngBtn = document.getElementById('export-transparent-png-btn');
+            const exportVideoBtn = document.getElementById('export-video-btn');
+            const exportTransparentVideoBtn = document.getElementById('export-transparent-video-btn');
+            const exportVideoAudioBtn = document.getElementById('export-video-audio-btn');
+            const exportTransparentVideoAudioBtn = document.getElementById('export-transparent-video-audio-btn');
+            const loadingModal = document.getElementById('loading-modal');
+            const loadingMessage = document.getElementById('loading-message');
+            const messageModal = document.getElementById('message-modal');
+            const messageTitle = document.getElementById('message-title');
+            const messageText = document.getElementById('message-text');
+            const messageOkBtn = document.getElementById('message-ok-btn');
+            const audioTrackContainer = document.getElementById('audio-track-container');
+            const audioTimelineWrapper = document.getElementById('audio-timeline-wrapper');
+            
+            // Canvas & Contexts
+            const ctx = mainCanvas.getContext('2d', { willReadFrequently: true });
+            const onionCtx = onionCanvas.getContext('2d');
+            
+            // Set canvas dimensions
+            [mainCanvas, onionCanvas].forEach(canvas => {
+                canvas.width = CANVAS_WIDTH;
+                canvas.height = CANVAS_HEIGHT;
+            });
+
+            // State
+            let isDrawing = false;
+            brushSizeSlider.value = brushSizeSlider.min;
+            let currentBrush = {
+                size: parseInt(brushSizeSlider.value),
+                opacity: parseInt(brushOpacitySlider.value) / 100,
+                color: colorPicker.value,
+                type: 'normal'
+            };
+            let timelineFramesData = [];
+            let currentLayerIndex = 1;
+            let currentFrameIndex = 0;
+            let frameRate = 12; 
+            let isPlaying = false;
+            let animationId;
+            let lastFrameTime = 0;
+            let onionSkinning = false;
+            let onionOpacity = 0.5;
+            let lastX = 0;
+            let lastY = 0;
+            const MAX_HISTORY_STATES = 10;
+
+            // Tool State
+            let currentTool = 'brush'; // 'brush', 'eraser', 'selection', 'bucket', 'eyedropper'
+            let isSelecting = false;
+            let selectionPath = [];
+            let fillTolerance = parseInt(fillToleranceSlider.value);
+            
+            let selectionCanvas = null;
+            let selectionTransform = { x: 0, y: 0, width: 0, height: 0, rotation: 0 };
+            let activeHandle = null;
+            const HANDLE_SIZE = 40; // Alteração: Aumentado em 4x para melhor usabilidade
+            let dragStart = { x: 0, y: 0 };
+            let initialTransform = {};
+            let tempDrawCanvas = null;
+
+            // Audio State
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            let audioContext = null;
+            let audioTracks = [];
+            let activeAudioSources = [];
+            let audioBufferSourceNode = null;
+            
+            // --- Funções Principais ---
+            
+            function showMessage(title, message) {
+                messageTitle.textContent = title;
+                messageText.textContent = message;
+                messageModal.classList.remove('hidden');
+            }
+            
+            messageOkBtn.addEventListener('click', () => {
+                messageModal.classList.add('hidden');
+            });
+            
+            function createLayer(name, options = {}) {
+                const { isBackground = false, fillWhite = false } = options;
+                
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = CANVAS_WIDTH;
+                tempCanvas.height = CANVAS_HEIGHT;
+                const tempCtx = tempCanvas.getContext('2d');
+
+                if (fillWhite) {
+                    tempCtx.fillStyle = 'white';
+                    tempCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                }
+
+                const initialImageData = tempCtx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                return { 
+                    name, 
+                    visible: true, 
+                    opacity: 1.0, 
+                    isBackground,
+                    history: [initialImageData], 
+                    historyIndex: 0 
+                };
+            }
+            
+            // OPTIMIZED DUPLICATE LAYER FUNCTION
+            function duplicateLayerOptimized(layer) {
+                const newImageData = new ImageData(
+                    new Uint8ClampedArray(layer.history[layer.historyIndex].data),
+                    layer.history[layer.historyIndex].width,
+                    layer.history[layer.historyIndex].height
+                );
+                return {
+                    name: `${layer.name} (Cópia)`,
+                    visible: true,
+                    opacity: layer.opacity,
+                    isBackground: layer.isBackground,
+                    history: [newImageData],
+                    historyIndex: 0
+                };
+            }
+
+            function drawCheckerboard(context, width, height) {
+                const size = 10;
+                context.fillStyle = '#a0a0a0';
+                context.fillRect(0, 0, width, height);
+                context.fillStyle = '#808080';
+                for (let y = 0; y < height; y += size) {
+                    for (let x = 0; x < width; x += size) {
+                        if ((x / size + y / size) % 2 === 0) {
+                            context.fillRect(x, y, size, size);
+                        }
+                    }
+                }
+            }
+
+
+            function updateUI() {
+                // Update timeline thumbnails
+                timelineFrames.innerHTML = '';
+                if (timelineFramesData.length > 0) {
+                    const THUMB_WIDTH = 160;
+                    const THUMB_HEIGHT = 90;
+                    for (let i = 0; i < timelineFramesData.length; i++) {
+                        const frameData = timelineFramesData[i];
+                        const frameContainer = document.createElement('div');
+                        frameContainer.className = `timeline-frame w-[${THUMB_WIDTH}px] h-[${THUMB_HEIGHT}px] bg-zinc-700 rounded-md overflow-hidden shadow-md cursor-pointer border-2 border-transparent flex-shrink-0 relative flex items-center justify-center`;
+                        if (i === currentFrameIndex) frameContainer.classList.add('active-frame');
+                        frameContainer.dataset.frameIndex = i;
+
+                        const frameCanvas = document.createElement('canvas');
+                        frameCanvas.width = THUMB_WIDTH; frameCanvas.height = THUMB_HEIGHT;
+                        const frameCtx = frameCanvas.getContext('2d');
+                        
+                        drawCheckerboard(frameCtx, THUMB_WIDTH, THUMB_HEIGHT);
+
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = CANVAS_WIDTH; tempCanvas.height = CANVAS_HEIGHT;
+                        const tempCtx = tempCanvas.getContext('2d');
+
+                        for (const layer of frameData.layers) {
+                            if (layer.visible) {
+                                const layerImageData = layer.history[layer.historyIndex];
+                                tempCtx.globalAlpha = layer.opacity;
+                                tempCtx.putImageData(layerImageData, 0, 0);
+                            }
+                        }
+
+                        frameCtx.drawImage(tempCanvas, 0, 0, frameCanvas.width, frameCanvas.height);
+                        frameContainer.appendChild(frameCanvas);
+                        
+                        const frameNumber = document.createElement('span');
+                        frameNumber.className = 'absolute bottom-0 right-1 text-xs font-bold text-black bg-white/70 px-1 rounded-sm';
+                        frameNumber.textContent = i + 1;
+                        frameContainer.appendChild(frameNumber);
+
+                        timelineFrames.appendChild(frameContainer);
+                    }
+                }
+                
+                // Update layer list for the current frame
+                layersList.innerHTML = '';
+                const currentLayers = timelineFramesData[currentFrameIndex]?.layers || [];
+                // Reverse the layers for display
+                currentLayers.slice().reverse().forEach((layer, revIndex) => {
+                    const index = currentLayers.length - 1 - revIndex;
+                    const layerDiv = document.createElement('div');
+                    layerDiv.className = `layer-item flex flex-col p-2 bg-zinc-700 rounded-lg shadow-sm transition-colors duration-150 space-y-2`;
+                    
+                    if (layer.isBackground) {
+                        layerDiv.classList.add('cursor-not-allowed');
+                    } else {
+                        layerDiv.classList.add('cursor-grab');
+                        layerDiv.setAttribute('draggable', 'true');
+                    }
+
+                    if (index === currentLayerIndex) {
+                        layerDiv.classList.add('bg-indigo-900/50', 'border', 'border-indigo-500');
+                    }
+                    layerDiv.dataset.layerIndex = index;
+                    
+                    const topRow = document.createElement('div');
+                    topRow.className = 'flex items-center justify-between';
+                    
+                    const nameContainer = document.createElement('div');
+                    nameContainer.className = 'flex items-center space-x-2 flex-grow';
+
+                    const visibilityBtn = document.createElement('button');
+                    visibilityBtn.className = 'toggle-visibility icon-btn p-1 rounded-full';
+                    visibilityBtn.title = 'Alternar visibilidade';
+                    visibilityBtn.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>`;
+                    if (!layer.visible) visibilityBtn.classList.add('opacity-40');
+                    
+                    const layerNameSpan = document.createElement('span');
+                    layerNameSpan.className = 'layer-name text-sm font-medium';
+                    layerNameSpan.textContent = layer.name;
+                    
+                    nameContainer.append(visibilityBtn, layerNameSpan);
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-layer icon-btn p-1 rounded-full flex-shrink-0';
+                    deleteBtn.title = 'Apagar camada';
+                    if(layer.isBackground) {
+                        deleteBtn.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" style="opacity: 0.2;"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>`;
+                        deleteBtn.disabled = true;
+                        deleteBtn.style.cursor = 'not-allowed';
+                    } else {
+                        deleteBtn.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>`;
+                    }
+                    topRow.append(nameContainer, deleteBtn);
+
+                    const bottomRow = document.createElement('div');
+                    bottomRow.className = 'flex items-center space-x-2';
+                    bottomRow.innerHTML = `<label class="text-xs text-gray-400">Opacidade:</label>`;
+                    const opacitySlider = document.createElement('input');
+                    opacitySlider.type = 'range';
+                    opacitySlider.className = 'layer-opacity-slider w-full h-1 bg-zinc-600 rounded-lg appearance-none cursor-pointer';
+                    opacitySlider.min = 0; opacitySlider.max = 100; opacitySlider.value = layer.opacity * 100;
+                    
+                    bottomRow.appendChild(opacitySlider);
+                    layerDiv.append(topRow, bottomRow);
+                    layersList.appendChild(layerDiv);
+                });
+            }
+
+            function renderCanvas(skipLayerIndex = -1) {
+                ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                onionCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+                const currentFrame = timelineFramesData[currentFrameIndex];
+                if (!currentFrame) return;
+
+                if (onionSkinning && currentFrameIndex > 0) {
+                    const prevFrame = timelineFramesData[currentFrameIndex - 1];
+                    const onionCompositeCanvas = document.createElement('canvas');
+                    onionCompositeCanvas.width = CANVAS_WIDTH;
+                    onionCompositeCanvas.height = CANVAS_HEIGHT;
+                    const onionCompositeCtx = onionCompositeCanvas.getContext('2d');
+                    
+                    for (const layer of prevFrame.layers) {
+                            if (layer.visible && !layer.isBackground) {
+                                const tempLayerCanvas = document.createElement('canvas');
+                                tempLayerCanvas.width = CANVAS_WIDTH;
+                                tempLayerCanvas.height = CANVAS_HEIGHT;
+                                const prevFrameData = layer.history[layer.historyIndex];
+                                tempLayerCanvas.getContext('2d').putImageData(prevFrameData, 0, 0);
+                                
+                                onionCompositeCtx.globalAlpha = layer.opacity;
+                                onionCompositeCtx.drawImage(tempLayerCanvas, 0, 0);
+                            }
+                    }
+                    drawTintedImage(onionCompositeCanvas, onionCtx, `rgba(255, 100, 100, ${onionOpacity})`);
+                }
+                
+                const tempRenderCanvas = document.createElement('canvas');
+                tempRenderCanvas.width = CANVAS_WIDTH;
+                tempRenderCanvas.height = CANVAS_HEIGHT;
+                const tempRenderCtx = tempRenderCanvas.getContext('2d');
+                
+                for (const [index, layer] of currentFrame.layers.entries()) {
+                    if(index === skipLayerIndex) continue;
+
+                    if (layer.visible) {
+                        const imageDataToDraw = layer.history[layer.historyIndex];
+                        if (imageDataToDraw) {
+                            tempRenderCtx.putImageData(imageDataToDraw, 0, 0);
+                            ctx.globalAlpha = layer.opacity;
+                            ctx.drawImage(tempRenderCanvas, 0, 0);
+                            tempRenderCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                        }
+                    }
+                }
+                ctx.globalAlpha = 1.0;
+
+                if (selectionCanvas) {
+                    drawTransformedSelection();
+                }
+
+                if (isSelecting && selectionPath.length > 0) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(selectionPath[0].x, selectionPath[0].y);
+                    for (let i = 1; i < selectionPath.length; i++) {
+                        ctx.lineTo(selectionPath[i].x, selectionPath[i].y);
+                    }
+                    ctx.setLineDash([4, 4]);
+                    ctx.strokeStyle = 'rgba(0, 100, 255, 0.8)';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+            
+            function drawTintedImage(sourceCanvas, targetCtx, tintColor) {
+                targetCtx.save();
+                targetCtx.globalCompositeOperation = 'source-over';
+                targetCtx.globalAlpha = parseFloat(tintColor.match(/[\d\.]+\)/));
+                targetCtx.drawImage(sourceCanvas, 0, 0);
+                
+                targetCtx.globalCompositeOperation = 'source-atop';
+                targetCtx.fillStyle = tintColor;
+                targetCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                targetCtx.restore();
+            }
+
+            function getMousePos(canvas, evt) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                return {
+                    x: (evt.clientX - rect.left) * scaleX,
+                    y: (evt.clientY - rect.top) * scaleY
+                };
+            }
+
+            function saveHistoryState(imageData) {
+                const currentFrameLayers = timelineFramesData[currentFrameIndex].layers;
+                if (!currentFrameLayers[currentLayerIndex]) return;
+
+                const currentLayer = currentFrameLayers[currentLayerIndex];
+                
+                if (currentLayer.historyIndex < currentLayer.history.length - 1) {
+                    currentLayer.history.splice(currentLayer.historyIndex + 1);
+                }
+                
+                currentLayer.history.push(imageData);
+                
+                if (currentLayer.history.length > MAX_HISTORY_STATES) {
+                    currentLayer.history.shift();
+                }
+                currentLayer.historyIndex = currentLayer.history.length - 1;
+            }
+
+            // --- Funções de Desenho do Pincel ---
+            function drawLine(x, y, lx, ly, dCtx, options = {}) {
+                dCtx.lineWidth = options.size || currentBrush.size;
+                dCtx.strokeStyle = options.color || currentBrush.color;
+                dCtx.globalAlpha = options.opacity || currentBrush.opacity;
+                dCtx.beginPath();
+                dCtx.moveTo(lx, ly);
+                dCtx.lineTo(x, y);
+                dCtx.stroke();
+            }
+
+            function drawSpray(px, py, dCtx, pressure = 1.0, brushSize = currentBrush.size) {
+                const density = Math.max(10, Math.round(40 * (0.5 + 0.5 * pressure)));
+                dCtx.fillStyle = currentBrush.color;
+                for (let i = 0; i < density; i++) {
+                    const angle = Math.random() * 2 * Math.PI;
+                    const radius = Math.random() * currentBrush.size;
+                    dCtx.globalAlpha = currentBrush.opacity * Math.random();
+                    dCtx.fillRect(px + radius * Math.cos(angle), py + radius * Math.sin(angle), 1, 1);
+                }
+            }
+
+            function drawCondensedSpray(px, py, dCtx, pressure = 1.0, brushSize = currentBrush.size) {
+                const density = Math.max(20, Math.round(50 * (0.5 + 0.5 * pressure)));
+                dCtx.fillStyle = currentBrush.color;
+                for (let i = 0; i < density; i++) {
+                    const angle = Math.random() * 2 * Math.PI;
+                    const radius = Math.random() * (brushSize / 2);
+                    dCtx.globalAlpha = currentBrush.opacity * (0.5 + Math.random() * 0.5);
+                    dCtx.fillRect(px + radius * Math.cos(angle), py + radius * Math.sin(angle), 1, 1);
+                }
+            }
+
+            function drawAirbrush(px, py, dCtx, pressure = 1.0, brushSize = currentBrush.size) {
+                dCtx.globalAlpha = Math.min(1, currentBrush.opacity * (0.05 + 0.95 * pressure) * 0.1); 
+                const gradient = dCtx.createRadialGradient(px, py, 0, px, py, currentBrush.size / 2);
+                gradient.addColorStop(0, currentBrush.color);
+                gradient.addColorStop(1, 'transparent');
+                dCtx.fillStyle = gradient;
+                dCtx.beginPath();
+                dCtx.arc(px, py, currentBrush.size / 2, 0, 2 * Math.PI);
+                dCtx.fill();
+            }
+
+            function draw(e, dCtx) {
+                if (!isDrawing || !dCtx) return;
+                const pos = getMousePos(mainCanvas, e);
+                const x = pos.x, y = pos.y;
+                const pressure = (typeof e.pressure !== 'undefined' && e.pressure !== 0) ? e.pressure : ((typeof e.force !== 'undefined') ? e.force : 1.0);
+                const tiltX = (typeof e.tiltX !== 'undefined') ? e.tiltX : 0;
+                const tiltY = (typeof e.tiltY !== 'undefined') ? e.tiltY : 0;
+                const localBrushSize = Math.max(1, currentBrush.size * (0.25 + 0.75 * pressure));
+
+                dCtx.lineCap = 'round';
+                dCtx.lineJoin = 'round';
+
+                const dist = Math.hypot(x - lastX, y - lastY);
+                const angle = Math.atan2(y - lastY, x - lastX);
+
+                for (let i = 0; i < dist; i += 1) {
+                    const px = lastX + Math.cos(angle) * i;
+                    const py = lastY + Math.sin(angle) * i;
+
+                    switch (currentBrush.type) {
+                        case 'pencil':
+                            if (i % 2 === 0) drawCondensedSpray(px, py, dCtx, pressure, localBrushSize);
+                            break;
+                        case 'airbrush':
+                           if (i % 5 === 0) drawAirbrush(px, py, dCtx, pressure, localBrushSize);
+                            break;
+                        case 'spray':
+                            if (i % 10 === 0) drawSpray(px, py, dCtx, pressure, localBrushSize);
+                            break;
+                        case 'oil':
+                            const sizeVariation = (Math.random() - 0.5) * (currentBrush.size * 0.2);
+                            drawLine(px, py, lastX + Math.cos(angle) * (i-1), lastY + Math.sin(angle) * (i-1), dCtx, { size: localBrushSize + sizeVariation });
+                            break;
+                        case 'normal':
+                        default:
+                            drawLine(px, py, lastX + Math.cos(angle) * (i-1), lastY + Math.sin(angle) * (i-1), dCtx, { size: localBrushSize });
+                            break;
+                    }
+                }
+
+                [lastX, lastY] = [x, y];
+            }
+
+
+            function animate() {
+                const now = performance.now();
+                const elapsed = now - lastFrameTime;
+
+                if (isPlaying && timelineFramesData.length > 0 && elapsed > 1000 / frameRate) {
+                    const lastFrameIndex = currentFrameIndex;
+                    currentFrameIndex = (currentFrameIndex + 1) % timelineFramesData.length;
+                    
+                    const currentTime = currentFrameIndex / frameRate;
+                    playAudioForCurrentTime(currentTime);
+
+
+                    if(currentFrameIndex < lastFrameIndex) {
+                        // The logic inside playAudioForCurrentTime handles restarting
+                    }
+
+                    lastFrameTime = now - (elapsed % (1000 / frameRate));
+                    renderCanvas();
+                    updateUI();
+                }
+                animationId = requestAnimationFrame(animate);
+            }
+            
+            function stopAllAudio() {
+                activeAudioSources.forEach(source => {
+                    try { source.source.stop(); } catch(e) {}
+                });
+                activeAudioSources = [];
+            }
+            
+            function playAudioForCurrentTime(currentTime) {
+                if(!audioContext) return;
+
+                activeAudioSources = activeAudioSources.filter(s => {
+                    const hasEnded = (audioContext.currentTime - s.startTime) >= s.duration;
+                    if(hasEnded) {
+                        try {s.source.stop();} catch(e){}
+                        return false;
+                    }
+                    return true;
+                });
+
+                audioTracks.forEach(track => {
+                    const alreadyPlaying = activeAudioSources.some(s => s.id === track.id);
+                    const clipStartTimeOnMainTimeline = track.timelineStart;
+                    const clipEndTimeOnMainTimeline = track.timelineStart + track.trimDuration;
+                    
+                    const shouldStart = currentTime >= clipStartTimeOnMainTimeline && currentTime < (clipStartTimeOnMainTimeline + (1/frameRate));
+
+                    if (!alreadyPlaying && shouldStart) {
+                        const source = audioContext.createBufferSource();
+                        
+                        const bufferToPlay = sliceAudioBuffer(track.originalBuffer, track.trimStart, track.trimDuration);
+
+                        source.buffer = bufferToPlay;
+                        source.connect(audioContext.destination);
+                        
+                        source.start(0);
+                        activeAudioSources.push({ id: track.id, source: source, startTime: audioContext.currentTime, duration: track.trimDuration });
+                    }
+                });
+            }
+
+            function togglePlayState() {
+                isPlaying = !isPlaying;
+                const playIcon = playPauseBtn.querySelector('#play-icon');
+                const pauseIcon = playPauseBtn.querySelector('#pause-icon');
+                if (isPlaying) {
+                    playIcon.classList.add('hidden');
+                    pauseIcon.classList.remove('hidden');
+                    currentFrameIndex = -1;
+                    lastFrameTime = performance.now();
+                    stopAllAudio();
+                } else {
+                    playIcon.classList.remove('hidden');
+                    pauseIcon.classList.add('hidden');
+                    stopAllAudio();
+                }
+            }
+
+            // --- Funções da Ferramenta de Seleção ---
+
+            function getHandles() {
+                const { x, y, width, height, rotation } = selectionTransform;
+                const cx = x + width / 2;
+                const cy = y + height / 2;
+
+                const handles = {
+                    tl: { x: x, y: y },
+                    tr: { x: x + width, y: y },
+                    bl: { x: x, y: y + height },
+                    br: { x: x + width, y: y + height },
+                    rot: { x: x + width / 2, y: y - 20 }
+                };
+
+                for (let key in handles) {
+                    const handle = handles[key];
+                    const dx = handle.x - cx;
+                    const dy = handle.y - cy;
+                    const rotatedX = cx + dx * Math.cos(rotation) - dy * Math.sin(rotation);
+                    const rotatedY = cy + dx * Math.sin(rotation) + dy * Math.cos(rotation);
+                    handles[key] = { x: rotatedX, y: rotatedY };
+                }
+                return handles;
+            }
+
+            function getHandleAt(pos) {
+                const handles = getHandles();
+                for (let key in handles) {
+                    const handle = handles[key];
+                    if (Math.hypot(pos.x - handle.x, pos.y - handle.y) < HANDLE_SIZE) {
+                        return key;
+                    }
+                }
+                const { x, y, width, height, rotation } = selectionTransform;
+                const cx = x + width / 2;
+                const cy = y + height / 2;
+                const dx = pos.x - cx;
+                const dy = pos.y - cy;
+                const localX = dx * Math.cos(-rotation) - dy * Math.sin(-rotation) + width / 2;
+                const localY = dx * Math.sin(-rotation) + dy * Math.cos(-rotation) + height / 2;
+
+                if(localX >= 0 && localX <= width && localY >=0 && localY <= height) {
+                    return 'move';
+                }
+
+                return null;
+            }
+            
+            function drawTransformedSelection() {
+                const { x, y, width, height, rotation } = selectionTransform;
+                const cx = x + width / 2;
+                const cy = y + height / 2;
+
+                ctx.save();
+                ctx.imageSmoothingQuality = 'high';
+                ctx.translate(cx, cy);
+                ctx.rotate(rotation);
+                ctx.drawImage(selectionCanvas, -width / 2, -height / 2, width, height);
+
+                // Draw bounding box
+                ctx.strokeStyle = '#0066ff';
+                ctx.setLineDash([4, 4]);
+                ctx.strokeRect(-width / 2, -height / 2, width, height);
+                ctx.setLineDash([]);
+                ctx.restore();
+
+                // Draw handles
+                const handles = getHandles();
+                ctx.fillStyle = '#fff';
+                ctx.strokeStyle = '#0066ff';
+                for (let key in handles) {
+                    const handle = handles[key];
+                    ctx.beginPath();
+                    if (key === 'rot') {
+                        ctx.arc(handle.x, handle.y, HANDLE_SIZE / 2, 0, Math.PI * 2);
+                    } else {
+                        ctx.rect(handle.x - HANDLE_SIZE / 2, handle.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+                    }
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            }
+
+
+            function finalizeAndCaptureSelection() {
+                if (selectionPath.length < 3) {
+                    selectionPath = [];
+                    return;
+                }
+
+                const currentLayers = timelineFramesData[currentFrameIndex].layers;
+                const frame = currentLayers[currentLayerIndex];
+                const sourceImageData = frame.history[frame.historyIndex];
+
+                const sourceCanvas = document.createElement('canvas');
+                sourceCanvas.width = CANVAS_WIDTH;
+                sourceCanvas.height = CANVAS_HEIGHT;
+                sourceCanvas.getContext('2d').putImageData(sourceImageData, 0, 0);
+
+                let minX = CANVAS_WIDTH, minY = CANVAS_HEIGHT, maxX = 0, maxY = 0;
+                selectionPath.forEach(p => {
+                    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+                    maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+                });
+                const bounds = { x: Math.floor(minX), y: Math.floor(minY), width: Math.ceil(maxX - minX), height: Math.ceil(maxY - minY)};
+                
+                if (bounds.width <= 0 || bounds.height <= 0) {
+                    selectionPath = []; return;
+                }
+                
+                selectionCanvas = document.createElement('canvas');
+                selectionCanvas.width = bounds.width;
+                selectionCanvas.height = bounds.height;
+                const selCtx = selectionCanvas.getContext('2d');
+                
+                selCtx.beginPath();
+                selCtx.moveTo(selectionPath[0].x - bounds.x, selectionPath[0].y - bounds.y);
+                for(let i=1; i<selectionPath.length; i++) {
+                    selCtx.lineTo(selectionPath[i].x - bounds.x, selectionPath[i].y - bounds.y);
+                }
+                selCtx.closePath();
+                selCtx.clip();
+                selCtx.drawImage(sourceCanvas, -bounds.x, -bounds.y);
+                
+                selectionTransform = { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, rotation: 0 };
+                
+                const mainLayerCtx = sourceCanvas.getContext('2d');
+                mainLayerCtx.save();
+                mainLayerCtx.globalCompositeOperation = 'destination-out';
+                mainLayerCtx.beginPath();
+                mainLayerCtx.moveTo(selectionPath[0].x, selectionPath[0].y);
+                for(let i=1; i<selectionPath.length; i++) mainLayerCtx.lineTo(selectionPath[i].x, selectionPath[i].y);
+                mainLayerCtx.closePath();
+                mainLayerCtx.fill();
+                mainLayerCtx.restore();
+
+                saveHistoryState(mainLayerCtx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT));
+                
+                selectionPath = [];
+                renderCanvas();
+            }
+
+            function stampSelection() {
+                if (!selectionCanvas) return;
+                
+                const currentLayers = timelineFramesData[currentFrameIndex].layers;
+                const frame = currentLayers[currentLayerIndex];
+                const targetImageData = frame.history[frame.historyIndex];
+
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = CANVAS_WIDTH;
+                tempCanvas.height = CANVAS_HEIGHT;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.putImageData(targetImageData, 0, 0);
+
+                const { x, y, width, height, rotation } = selectionTransform;
+                const cx = x + width / 2;
+                const cy = y + height / 2;
+
+                tempCtx.save();
+                tempCtx.translate(cx, cy);
+                tempCtx.rotate(rotation);
+                tempCtx.drawImage(selectionCanvas, -width / 2, -height / 2, width, height);
+                tempCtx.restore();
+
+                saveHistoryState(tempCtx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT));
+
+                selectionCanvas = null;
+                renderCanvas();
+                updateUI();
+            }
+            
+            const stopDrawing = () => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    saveHistoryState(tempDrawCanvas.getContext('2d').getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT));
+                    tempDrawCanvas = null;
+                    renderCanvas();
+                    updateUI();
+                }
+            };
+            
+            function floodFill(startX, startY) {
+                const currentLayers = timelineFramesData[currentFrameIndex].layers;
+                const frame = currentLayers[currentLayerIndex];
+                const sourceImageData = frame.history[frame.historyIndex];
+
+                const imageData = new ImageData(
+                    new Uint8ClampedArray(sourceImageData.data),
+                    sourceImageData.width,
+                    sourceImageData.height
+                );
+
+                const data = imageData.data;
+                const width = CANVAS_WIDTH;
+                const height = CANVAS_HEIGHT;
+
+                const hexToRgb = (hex) => {
+                    const r = parseInt(hex.slice(1, 3), 16);
+                    const g = parseInt(hex.slice(3, 5), 16);
+                    const b = parseInt(hex.slice(5, 7), 16);
+                    return [r, g, b];
+                };
+
+                const [fillR, fillG, fillB] = hexToRgb(currentBrush.color);
+                const fillA = 255;
+
+                const startIdx = (startY * width + startX) * 4;
+                const startR = data[startIdx];
+                const startG = data[startIdx + 1];
+                const startB = data[startIdx + 2];
+                const startA = data[startIdx + 3];
+                
+                if (fillR === startR && fillG === startG && fillB === startB && fillA === startA) {
+                    return;
+                }
+
+                const toleranceThresholdSq = Math.pow(fillTolerance * 2.55, 2);
+                const pixelStack = [[startX, startY]];
+                const visited = new Uint8Array(width * height);
+                visited[startY * width + startX] = 1;
+
+                while (pixelStack.length > 0) {
+                    const [x, y] = pixelStack.pop();
+                    
+                    const currentIdx = (y * width + x) * 4;
+                    data[currentIdx] = fillR;
+                    data[currentIdx + 1] = fillG;
+                    data[currentIdx + 2] = fillB;
+                    data[currentIdx + 3] = fillA;
+
+                    const neighbors = [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]];
+                    for (const [nx, ny] of neighbors) {
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                            const neighborLinearCoord = ny * width + nx;
+                            if (visited[neighborLinearCoord]) {
+                                continue;
+                            }
+                            
+                            const neighborIdx = neighborLinearCoord * 4;
+                            const currentR = data[neighborIdx];
+                            const currentG = data[neighborIdx + 1];
+                            const currentB = data[neighborIdx + 2];
+                            const currentA = data[neighborIdx + 3];
+
+                            const rDiff = currentR - startR;
+                            const gDiff = currentG - startG;
+                            const bDiff = currentB - startB;
+                            const aDiff = currentA - startA;
+                            
+                            const colorDistanceSq = rDiff * rDiff + gDiff * gDiff + bDiff * bDiff + aDiff * aDiff;
+
+                            if (colorDistanceSq <= toleranceThresholdSq) {
+                                pixelStack.push([nx, ny]);
+                                visited[neighborLinearCoord] = 1;
+                            }
+                        }
+                    }
+                }
+
+                saveHistoryState(imageData);
+                renderCanvas();
+                updateUI();
+            }
+
+            // --- Event Handlers ---
+            mainCanvas.addEventListener('mousedown', (e) => {
+                const pos = getMousePos(mainCanvas, e);
+
+                if (currentTool === 'eyedropper') {
+                    const pixelData = ctx.getImageData(pos.x, pos.y, 1, 1).data;
+                    const hex = "#" + ("000000" + rgbToHex(pixelData[0], pixelData[1], pixelData[2])).slice(-6);
+                    currentBrush.color = hex;
+                    colorPicker.value = hex;
+                    colorPickerContainer.style.backgroundColor = hex;
+                    setTool('brush');
+                    return;
+                }
+
+                if (currentTool === 'selection' && selectionCanvas) {
+                    activeHandle = getHandleAt(pos);
+                    if (activeHandle) {
+                        dragStart = pos;
+                        initialTransform = JSON.parse(JSON.stringify(selectionTransform));
+                        return;
+                    } else {
+                        stampSelection();
+                        setTool('brush');
+                        return;
+                    }
+                }
+
+                if (currentTool === 'bucket') {
+                    floodFill(Math.floor(pos.x), Math.floor(pos.y));
+                    return;
+                }
+
+                if (currentTool === 'brush' || currentTool === 'eraser') {
+                    if (timelineFramesData.length === 0 || currentLayerIndex === 0) return;
+                    isDrawing = true;
+                    [lastX, lastY] = [pos.x, pos.y];
+
+                    tempDrawCanvas = document.createElement('canvas');
+                    tempDrawCanvas.width = CANVAS_WIDTH;
+                    tempDrawCanvas.height = CANVAS_HEIGHT;
+                    const tempCtx = tempDrawCanvas.getContext('2d');
+
+                    const currentFrameLayers = timelineFramesData[currentFrameIndex].layers;
+                    const currentLayer = currentFrameLayers[currentLayerIndex];
+                    const currentImageData = currentLayer.history[currentLayer.historyIndex];
+                    tempCtx.putImageData(currentImageData, 0, 0);
+
+                    tempCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+                    
+                    draw(e, tempCtx);
+
+                    renderCanvas(currentLayerIndex);
+                    ctx.globalAlpha = currentFrameLayers[currentLayerIndex].opacity;
+                    ctx.drawImage(tempDrawCanvas, 0, 0);
+                    ctx.globalAlpha = 1.0;
+                    
+                } else if (currentTool === 'selection') {
+                    isSelecting = true;
+                    selectionPath = [pos];
+                }
+            });
+
+
+            mainCanvas.addEventListener('mousemove', (e) => {
+                const pos = getMousePos(mainCanvas, e);
+
+                if (activeHandle) {
+                    const dx = pos.x - dragStart.x;
+                    const dy = pos.y - dragStart.y;
+                    const { x, y, width, height, rotation } = initialTransform;
+                    const cx = x + width / 2;
+                    const cy = y + height / 2;
+
+                    if (activeHandle === 'move') {
+                        selectionTransform.x = initialTransform.x + dx;
+                        selectionTransform.y = initialTransform.y + dy;
+                    } else if (activeHandle === 'rot') {
+                        const startAngle = Math.atan2(dragStart.y - cy, dragStart.x - cx);
+                        const currentAngle = Math.atan2(pos.y - cy, pos.x - cx);
+                        selectionTransform.rotation = initialTransform.rotation + (currentAngle - startAngle);
+                    } else {
+                        const cos = Math.cos(-rotation);
+                        const sin = Math.sin(-rotation);
+                        const rotatedDx = dx * cos - dy * sin;
+                        const rotatedDy = dx * sin + dy * cos;
+                        
+                        let newWidth = width, newHeight = height;
+                        let newX = x, newY = y;
+
+                        if (activeHandle.includes('r')) newWidth = width + rotatedDx;
+                        if (activeHandle.includes('l')) { newWidth = width - rotatedDx; newX = x + dx; }
+                        if (activeHandle.includes('b')) newHeight = height + rotatedDy;
+                        if (activeHandle.includes('t')) { newHeight = height - rotatedDy; newY = y + dy; }
+                        
+                        selectionTransform.width = newWidth;
+                        selectionTransform.height = newHeight;
+                    }
+                    renderCanvas();
+                } else if (isSelecting) {
+                    selectionPath.push(pos);
+                    renderCanvas(); 
+                } else if (isDrawing) {
+                    const tempCtx = tempDrawCanvas.getContext('2d');
+                    draw(e, tempCtx);
+                    renderCanvas(currentLayerIndex);
+                    ctx.globalAlpha = timelineFramesData[currentFrameIndex].layers[currentLayerIndex].opacity;
+                    ctx.drawImage(tempDrawCanvas, 0, 0);
+                    ctx.globalAlpha = 1.0;
+                }
+            });
+
+            mainCanvas.addEventListener('mouseup', (e) => {
+                if (isDrawing) {
+                    stopDrawing();
+                } else if (isSelecting) {
+                    isSelecting = false;
+                    finalizeAndCaptureSelection();
+                }
+                activeHandle = null;
+            });
+            mainCanvas.addEventListener('mouseout', (e) => {
+                       if (isDrawing) {
+                            stopDrawing();
+                       }
+                       if(isSelecting){
+                           isSelecting = false;
+                           finalizeAndCaptureSelection();
+                       }
+                       activeHandle = null;
+            });
+
+            // --- Suporte a mesas digitalizadoras: Pointer Events ---
+            mainCanvas.addEventListener('pointerdown', (e) => {
+                if (e.pointerType === 'mouse') return;
+                mainCanvas.setPointerCapture(e.pointerId);
+                const fake = e;
+                mainCanvas.dispatchEvent(new MouseEvent('mousedown', {clientX: e.clientX, clientY: e.clientY}));
+            });
+            mainCanvas.addEventListener('pointermove', (e) => {
+                if (e.pointerType === 'mouse') return;
+                const fake = e;
+                mainCanvas.dispatchEvent(new MouseEvent('mousemove', {clientX: e.clientX, clientY: e.clientY, pressure: e.pressure || 1.0}));
+            });
+            mainCanvas.addEventListener('pointerup', (e) => {
+                if (e.pointerType === 'mouse') return;
+                try { mainCanvas.releasePointerCapture(e.pointerId); } catch(e){}
+                mainCanvas.dispatchEvent(new MouseEvent('mouseup', {clientX: e.clientX, clientY: e.clientY}));
+            });
+            mainCanvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); }, { passive:false });
+
+            // Helper function to convert RGB to Hex
+            function rgbToHex(r, g, b) {
+                return ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+            }
+
+            function setTool(tool) {
+                if (currentTool === 'selection' && selectionCanvas) {
+                    stampSelection();
+                }
+                
+                selectionToolBtn.classList.remove('active');
+                paintBucketBtn.classList.remove('active');
+                eyedropperBtn.classList.remove('active');
+                toolSwitch.checked = false;
+                
+                currentTool = tool;
+
+                switch (currentTool) {
+                    case 'selection':
+                        selectionToolBtn.classList.add('active');
+                        mainCanvas.style.cursor = 'crosshair';
+                        selectionPath = [];
+                        break;
+                    case 'bucket':
+                        paintBucketBtn.classList.add('active');
+                        mainCanvas.style.cursor = 'crosshair';
+                        break;
+                    case 'eyedropper':
+                        eyedropperBtn.classList.add('active');
+                        mainCanvas.style.cursor = 'copy';
+                        break;
+                    case 'eraser':
+                        toolSwitch.checked = true;
+                        mainCanvas.style.cursor = 'crosshair';
+                        break;
+                    case 'brush':
+                    default:
+                        mainCanvas.style.cursor = 'crosshair';
+                        break;
+                }
+            }
+            
+            eyedropperBtn.addEventListener('click', () => {
+                if (currentTool === 'eyedropper') {
+                    setTool('brush');
+                } else {
+                    setTool('eyedropper');
+                }
+            });
+
+            selectionToolBtn.addEventListener('click', () => {
+                if (currentTool === 'selection') {
+                    setTool('brush');
+                } else {
+                    setTool('selection');
+                }
+            });
+
+            paintBucketBtn.addEventListener('click', () => {
+                if (currentTool === 'bucket') {
+                    setTool('brush');
+                } else {
+                    setTool('bucket');
+                }
+            });
+
+
+// Adicione uma variável para guardar o tamanho do pincel antes de mudar para a borracha
+let lastBrushSize = parseInt(brushSizeSlider.value);
+const MAX_BRUSH_SIZE = parseInt(brushSizeSlider.max); // Pega o valor máximo do slider
+
+toolSwitch.addEventListener('change', (e) => {
+    if (e.target.checked) {
+        // Se a borracha for ativada
+        setTool('eraser');
+        lastBrushSize = parseInt(brushSizeSlider.value);
+        
+        // Calcula o novo tamanho, limitando-o ao valor máximo
+        const newEraserSize = Math.min(lastBrushSize * 16, MAX_BRUSH_SIZE);
+
+        brushSizeSlider.value = newEraserSize;
+        currentBrush.size = newEraserSize;
+
+    } else {
+        // Se voltar para o pincel
+        setTool('brush');
+        brushSizeSlider.value = lastBrushSize;
+        currentBrush.size = lastBrushSize;
+    }
+});
+
+brushSizeSlider.addEventListener('input', (e) => {
+    currentBrush.size = parseInt(e.target.value);
+    // Atualiza o tamanho original do pincel apenas se a ferramenta não for a borracha
+    if (!toolSwitch.checked) {
+        lastBrushSize = currentBrush.size;
+    }
+});
+
+brushSizeSlider.addEventListener('input', (e) => {
+    currentBrush.size = parseInt(e.target.value);
+    // Atualiza o tamanho original do pincel apenas se a ferramenta não for a borracha
+    if (!toolSwitch.checked) {
+        lastBrushSize = currentBrush.size;
+    }
+});
+
+            brushSizeSlider.addEventListener('input', (e) => {
+                                 currentBrush.size = parseInt(e.target.value);
+                                 if (currentTool !== 'selection' && currentTool !== 'bucket' && currentTool !== 'eyedropper') {
+                                     setTool(toolSwitch.checked ? 'eraser' : 'brush');
+                                 }
+            });
+          
+          
+
+
+
+
+// DAQUI PARA BAIXO É O CÓDIGO NOVO COM AJUSTE PARA 99%
+brushOpacitySlider.addEventListener('input', (e) => {
+    const sliderValue = parseInt(e.target.value); // Pega o valor do slider (0 a 100)
+    let newOpacity;
+
+    // A condição agora verifica se o valor é menor ou igual a 99
+    if (sliderValue <= 99) {
+        // --- PARTE 1: Controle Fino (0 a 99 no slider) ---
+        // Mapeia o input [0, 99] para a opacidade [0.05, 0.10]
+
+        // A divisão agora é por 99 para calcular o progresso corretamente nesta faixa maior
+        const progress = sliderValue / 99; 
+        
+        // A fórmula para calcular a opacidade continua a mesma
+        newOpacity = 0.002 + (progress * 0.04); 
+
+    } else {
+        // --- PARTE 2: Salto Final (apenas quando o slider está em 100) ---
+        // Mapeia o input [99, 100] para a opacidade [0.10, 1.0]
+
+        // A divisão agora é por 1 (pois 100 - 99 = 1), o que torna o salto final instantâneo
+        const progress = (sliderValue - 99) / 10; 
+
+        // A fórmula para o salto também permanece a mesma
+        newOpacity = 0.002 + (progress * 0.9);
+    }
+
+    // Define a opacidade do pincel com o valor calculado
+    currentBrush.opacity = newOpacity;
+});
+// ATÉ AQUI
+
+
+
+            colorPickerContainer.addEventListener('click', () => {
+                colorPicker.click();
+            });
+
+            colorPicker.addEventListener('input', (e) => {
+                currentBrush.color = e.target.value;
+                colorPickerContainer.style.backgroundColor = e.target.value;
+            });
+            
+            fillToleranceSlider.addEventListener('input', (e) => {
+                fillTolerance = parseInt(e.target.value);
+            });
+            
+            // History controls
+            const undo = () => {
+                const currentLayers = timelineFramesData[currentFrameIndex].layers;
+                if (!currentLayers[currentLayerIndex]) return;
+                const currentLayer = currentLayers[currentLayerIndex];
+                if (currentLayer.historyIndex > 0) {
+                    currentLayer.historyIndex--;
+                    renderCanvas();
+                    updateUI();
+                }
+            };
+            const redo = () => {
+                const currentLayers = timelineFramesData[currentFrameIndex].layers;
+                if (!currentLayers[currentLayerIndex]) return;
+                const currentLayer = currentLayers[currentLayerIndex];
+                if (currentLayer.historyIndex < currentLayer.history.length - 1) {
+                    currentLayer.historyIndex++;
+                    renderCanvas();
+                    updateUI();
+                }
+            };
+            undoBtn.addEventListener('click', undo);
+            redoBtn.addEventListener('click', redo);
+
+            // Animation controls
+            playPauseBtn.addEventListener('click', togglePlayState);
+            const goToPrevFrame = () => {
+                stampSelection();
+                if (!isPlaying && timelineFramesData.length > 0) {
+                    currentFrameIndex = (currentFrameIndex - 1 + timelineFramesData.length) % timelineFramesData.length;
+                    currentLayerIndex = Math.min(currentLayerIndex, timelineFramesData[currentFrameIndex].layers.length - 1);
+                    renderCanvas(); updateUI();
+                }
+            };
+            const goToNextFrame = () => {
+                stampSelection();
+                if (!isPlaying && timelineFramesData.length > 0) {
+                    currentFrameIndex = (currentFrameIndex + 1) % timelineFramesData.length;
+                    currentLayerIndex = Math.min(currentLayerIndex, timelineFramesData[currentFrameIndex].layers.length - 1);
+                    renderCanvas(); updateUI();
+                }
+            };
+
+            const flipSelectionHorizontal = () => {
+                if (!selectionCanvas) return;
+
+                const newCanvas = document.createElement('canvas');
+                newCanvas.width = selectionCanvas.width;
+                newCanvas.height = selectionCanvas.height;
+                const tempCtx = newCanvas.getContext('2d');
+                
+                tempCtx.translate(newCanvas.width, 0);
+                tempCtx.scale(-1, 1);
+                tempCtx.drawImage(selectionCanvas, 0, 0);
+                
+                selectionCanvas = newCanvas;
+                renderCanvas();
+            };
+
+            copySelectionBtn.addEventListener('click', () => {
+                if (!selectionCanvas) return;
+
+                const duplicatedCanvas = document.createElement('canvas');
+                duplicatedCanvas.width = selectionCanvas.width;
+                duplicatedCanvas.height = selectionCanvas.height;
+                duplicatedCanvas.getContext('2d').drawImage(selectionCanvas, 0, 0);
+
+                stampSelection();
+
+                selectionCanvas = duplicatedCanvas;
+                
+                renderCanvas();
+            });
+
+            flipHorizontalBtn.addEventListener('click', flipSelectionHorizontal);
+
+            addFrameBtn.addEventListener('click', () => {
+                stampSelection();
+                const newFrame = {
+                    layers: [
+                        createLayer('Background', { isBackground: true, fillWhite: true }),
+                        createLayer('Camada 1')
+                    ]
+                };
+                timelineFramesData.splice(currentFrameIndex + 1, 0, newFrame);
+                currentFrameIndex++;
+                currentLayerIndex = 1;
+                renderCanvas(); 
+                updateUI();
+                updateTimelineWidths();
+            });
+            
+           duplicateFrameBtn.addEventListener('click', () => {
+    stampSelection();
+    if (timelineFramesData.length > 0) {
+        const currentFrame = timelineFramesData[currentFrameIndex];
+        const newFrame = { layers: [] };
+        
+        currentFrame.layers.forEach((layer) => {
+            const newImageData = new ImageData(
+                new Uint8ClampedArray(layer.history[layer.historyIndex].data),
+                layer.history[layer.historyIndex].width,
+                layer.history[layer.historyIndex].height
+            );
+            
+            const newLayer = {
+                name: layer.isBackground ? 'Background' : `Camada ${newFrame.layers.filter(l => !l.isBackground).length + 1}`,
+                visible: layer.visible,
+                opacity: layer.opacity,
+                isBackground: layer.isBackground,
+                history: [newImageData],
+                historyIndex: 0
+            };
+            
+            newFrame.layers.push(newLayer);
+        });
+
+        timelineFramesData.splice(currentFrameIndex + 1, 0, newFrame);
+        currentFrameIndex++;
+        currentLayerIndex = 1; 
+        renderCanvas();
+        updateUI();
+        updateTimelineWidths();
+    }
+});
+
+            deleteFrameBtn.addEventListener('click', () => {
+                stampSelection();
+                if (timelineFramesData.length > 1) {
+                    timelineFramesData.splice(currentFrameIndex, 1);
+                    if (currentFrameIndex >= timelineFramesData.length) {
+                        currentFrameIndex = timelineFramesData.length - 1;
+                    }
+                    currentLayerIndex = Math.min(currentLayerIndex, timelineFramesData[currentFrameIndex].layers.length - 1);
+                    renderCanvas(); 
+                    updateUI();
+                    updateTimelineWidths();
+                }
+            });
+            
+            // --- UPDATE: Arrastar e soltar para a timeline com Pointer Events (caneta/toque) ---
+            let dragStartPos = { x: 0, y: 0 };
+            let isDragging = false;
+            let dragThreshold = 5; // O usuário precisa mover 5px para iniciar o arrasto
+            let draggedFrameElement = null;
+            let draggedFrameIndex = null;
+            let placeholder = null;
+            let dropIndicatorLine = null; 
+
+            function createPlaceholder() {
+                const p = document.createElement('div');
+                p.className = 'flex-shrink-0 w-[160px] h-[90px] bg-zinc-800/50 rounded-lg border-2 border-dashed border-zinc-600 box-border transition-all duration-150';
+                return p;
+            }
+
+            timelineFrames.addEventListener('pointerdown', (e) => {
+                const frameElement = e.target.closest('.timeline-frame');
+                if (!frameElement || e.button !== 0) return;
+
+                draggedFrameElement = frameElement;
+                draggedFrameIndex = parseInt(frameElement.dataset.frameIndex, 10);
+                dragStartPos = { x: e.clientX, y: e.clientY };
+                isDragging = false; 
+
+                frameElement.setPointerCapture(e.pointerId);
+
+                const onPointerMove = (moveEvent) => {
+                    const dx = Math.abs(moveEvent.clientX - dragStartPos.x);
+                    const dy = Math.abs(moveEvent.clientY - dragStartPos.y);
+
+                    if (!isDragging && (dx > dragThreshold || dy > dragThreshold)) {
+                        isDragging = true; 
+
+                        document.body.style.cursor = 'grabbing';
+                        
+                        dropIndicatorLine = document.createElement('div');
+                        const timelineRect = timelineFrames.getBoundingClientRect();
+                        Object.assign(dropIndicatorLine.style, {
+                            position: 'fixed',
+                            zIndex: '1000',
+                            pointerEvents: 'none',
+                            width: '3px',
+                            height: `${timelineRect.height + 10}px`,
+                            backgroundColor: '#818cf8',
+                            borderRadius: '2px',
+                            top: `${timelineRect.top - 5}px`,
+                            left: `${moveEvent.clientX}px`,
+                            boxShadow: '0 0 10px #6366f1'
+                        });
+                        document.body.appendChild(dropIndicatorLine);
+
+                        placeholder = createPlaceholder();
+                        draggedFrameElement.parentElement.insertBefore(placeholder, draggedFrameElement);
+                        draggedFrameElement.style.opacity = '0.2';
+                    }
+
+                    if (isDragging) {
+                        moveEvent.preventDefault(); 
+                        
+                        dropIndicatorLine.style.left = `${moveEvent.clientX}px`;
+
+                        const target = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+                        const targetFrame = target ? target.closest('.timeline-frame') : null;
+
+                        if (targetFrame && targetFrame !== draggedFrameElement) {
+                            const targetRect = targetFrame.getBoundingClientRect();
+                            const isAfter = moveEvent.clientX > targetRect.left + targetRect.width / 2;
+                            if (isAfter) {
+                                targetFrame.parentNode.insertBefore(placeholder, targetFrame.nextSibling);
+                            } else {
+                                targetFrame.parentNode.insertBefore(placeholder, targetFrame);
+                            }
+                        }
+                    }
+                };
+
+                const onPointerUp = (upEvent) => {
+                    try { if(draggedFrameElement) draggedFrameElement.releasePointerCapture(upEvent.pointerId); } catch(err) {}
+                    document.removeEventListener('pointermove', onPointerMove);
+                    document.removeEventListener('pointerup', onPointerUp);
+                    document.removeEventListener('pointercancel', onPointerUp);
+                    document.body.style.cursor = '';
+                    
+                    if (isDragging) {
+                        if (dropIndicatorLine) dropIndicatorLine.remove();
+                        
+                        if (placeholder) {
+                            const newIndex = Array.from(placeholder.parentNode.children).indexOf(placeholder);
+                            placeholder.remove();
+
+                            const dropTargetIndex = (draggedFrameIndex < newIndex) ? newIndex - 1 : newIndex;
+                        
+                            if (draggedFrameIndex !== dropTargetIndex) {
+                                const [draggedFrameData] = timelineFramesData.splice(draggedFrameIndex, 1);
+                                timelineFramesData.splice(dropTargetIndex, 0, draggedFrameData);
+
+                                if (currentFrameIndex === draggedFrameIndex) {
+                                    currentFrameIndex = dropTargetIndex;
+                                } else if (draggedFrameIndex < currentFrameIndex && dropTargetIndex >= currentFrameIndex) {
+                                    currentFrameIndex--;
+                                } else if (draggedFrameIndex > currentFrameIndex && dropTargetIndex <= currentFrameIndex) {
+                                    currentFrameIndex++;
+                                }
+                            }
+                        }
+
+                    } else {
+                        // --- LÓGICA DE CLIQUE ---
+                        if(draggedFrameElement){
+                            stampSelection();
+                            const newIndex = parseInt(draggedFrameElement.dataset.frameIndex, 10);
+                            if (newIndex !== currentFrameIndex) {
+                                currentFrameIndex = newIndex;
+                                const currentLayers = timelineFramesData[currentFrameIndex].layers;
+                                currentLayerIndex = currentLayers.length > 1 ? 1 : 0;
+                                if (currentLayerIndex >= currentLayers.length) {
+                                    currentLayerIndex = currentLayers.length - 1;
+                                }
+                            }
+                        }
+                    }
+                    if(draggedFrameElement) draggedFrameElement.style.opacity = '1';
+
+                    draggedFrameElement = null;
+                    draggedFrameIndex = null;
+                    isDragging = false;
+                    dropIndicatorLine = null;
+                    placeholder = null;
+
+                    updateUI();
+                    renderCanvas();
+                };
+
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', onPointerUp);
+                document.addEventListener('pointercancel', onPointerUp);
+            });
+
+
+            // Panel Logic
+            const setupPanel = (button, panel) => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    panel.classList.toggle('hidden');
+                });
+            };
+
+            setupPanel(layersPanelBtn, layersPanel);
+            setupPanel(brushesPanelBtn, brushesPanel);
+
+            document.addEventListener('click', (e) => {
+                if (!layersPanel.classList.contains('hidden') && !layersPanel.contains(e.target) && !layersPanelBtn.contains(e.target)) {
+                    layersPanel.classList.add('hidden');
+                }
+                if (!brushesPanel.classList.contains('hidden') && !brushesPanel.contains(e.target) && !brushesPanelBtn.contains(e.target)) {
+                    brushesPanel.classList.add('hidden');
+                }
+                if (!fileMenu.classList.contains('hidden') && !fileMenu.contains(e.target) && !fileMenuBtn.contains(e.target)) {
+                    fileMenu.classList.add('hidden');
+                }
+            });
+            
+            // Configuração do Painel de Pincéis
+            const brushes = [
+                { type: 'normal', name: 'Normal' },
+                { type: 'pencil', name: '6B' },
+                { type: 'airbrush', name: 'Luz' },
+                { type: 'spray', name: 'Spray' },
+                { type: 'oil', name: 'Tinta a Óleo' }
+            ];
+
+            brushes.forEach(brush => {
+                const brushBtn = document.createElement('button');
+                brushBtn.className = `brush-btn w-full text-left p-2 bg-zinc-700 rounded-lg shadow-sm transition-colors duration-150 hover:bg-zinc-600`;
+                if (brush.type === currentBrush.type) {
+                    brushBtn.classList.add('bg-indigo-900/50', 'border', 'border-indigo-500');
+                }
+                brushBtn.dataset.brushType = brush.type;
+                brushBtn.title = brush.name;
+
+                const brushNameSpan = document.createElement('span');
+                brushNameSpan.className = 'text-sm font-medium';
+                brushNameSpan.textContent = brush.name;
+                
+                brushBtn.appendChild(brushNameSpan);
+                brushesList.appendChild(brushBtn);
+            });
+
+            brushesList.addEventListener('click', (e) => {
+                const btn = e.target.closest('.brush-btn');
+                if (btn) {
+                    setTool('brush');
+                    brushesList.querySelectorAll('.brush-btn').forEach(b => {
+                        b.classList.remove('bg-indigo-900/50', 'border', 'border-indigo-500');
+                    });
+                    btn.classList.add('bg-indigo-900/50', 'border', 'border-indigo-500');
+                    currentBrush.type = btn.dataset.brushType;
+                }
+            });
+
+
+            // Lógica do Painel de Camadas
+            let draggedLayerDiv = null;
+
+            layersList.addEventListener('pointerdown', (e) => {
+                const layerDiv = e.target.closest('.layer-item');
+                const currentLayers = timelineFramesData[currentFrameIndex].layers;
+                if (e.target.closest('.delete-layer') || e.target.closest('.toggle-visibility') || e.target.classList.contains('layer-opacity-slider')) {
+                    return;
+                }
+                if (layerDiv && !currentLayers[parseInt(layerDiv.dataset.layerIndex)].isBackground) {
+                    draggedLayerDiv = layerDiv;
+                    draggedLayerDiv.classList.add('dragging');
+                    e.preventDefault();
+                }
+            });
+
+            layersList.addEventListener('pointermove', (e) => {
+                if (!draggedLayerDiv) return;
+                e.preventDefault();
+                const targetLayerDiv = e.target.closest('.layer-item');
+                if (targetLayerDiv && draggedLayerDiv !== targetLayerDiv) {
+                    const targetRect = targetLayerDiv.getBoundingClientRect();
+                    const midPoint = targetRect.top + targetRect.height / 2;
+                    const isBefore = e.clientY < midPoint;
+                    
+                    if (isBefore) {
+                        layersList.insertBefore(draggedLayerDiv, targetLayerDiv);
+                    } else {
+                        layersList.insertBefore(draggedLayerDiv, targetLayerDiv.nextSibling);
+                    }
+                }
+            });
+            
+            layersList.addEventListener('pointerup', () => {
+                if (!draggedLayerDiv) return;
+
+                const currentLayers = timelineFramesData[currentFrameIndex].layers;
+                const newOrderDivs = Array.from(layersList.children);
+                
+                const oldDataIndex = parseInt(draggedLayerDiv.dataset.layerIndex);
+                const newDataIndex = currentLayers.length - 1 - newOrderDivs.indexOf(draggedLayerDiv);
+                
+                const layerToMove = currentLayers.splice(oldDataIndex, 1)[0];
+                currentLayers.splice(newDataIndex, 0, layerToMove);
+                
+                const bgLayer = currentLayers.find(l => l.isBackground);
+                const bgIndex = currentLayers.indexOf(bgLayer);
+                if (bgIndex !== 0) {
+                    currentLayers.splice(bgIndex, 1);
+                    currentLayers.unshift(bgLayer);
+                }
+
+                currentLayerIndex = newDataIndex;
+
+                draggedLayerDiv.classList.remove('dragging');
+                draggedLayerDiv = null;
+
+                updateUI();
+                renderCanvas();
+            });
+
+            layersList.addEventListener('click', (e) => {
+                const layerDiv = e.target.closest('.layer-item');
+                if (!layerDiv) return;
+
+                const currentLayers = timelineFramesData[currentFrameIndex].layers;
+                
+                const allLayerDivs = Array.from(layersList.children);
+                const clickedUIIndex = allLayerDivs.indexOf(layerDiv);
+                
+                const clickedDataIndex = currentLayers.length - 1 - clickedUIIndex;
+                const clickedLayer = currentLayers[clickedDataIndex];
+
+                if (e.target.closest('.layer-name')) {
+                    stampSelection();
+                    currentLayerIndex = clickedDataIndex;
+                    updateUI();
+                }
+                
+                if (e.target.closest('.toggle-visibility')) {
+                    clickedLayer.visible = !clickedLayer.visible;
+                    renderCanvas();
+                    updateUI();
+                }
+                
+                if (e.target.closest('.delete-layer')) {
+                    if (currentLayers.length > 1 && !clickedLayer.isBackground) {
+                        stampSelection();
+                        currentLayers.splice(clickedDataIndex, 1);
+                        
+                        if (currentLayerIndex === clickedDataIndex) {
+                           currentLayerIndex = Math.min(currentLayers.length - 1, currentLayerIndex);
+                        } else if (currentLayerIndex > clickedDataIndex) {
+                           currentLayerIndex--;
+                        }
+
+                        updateUI();
+                        renderCanvas();
+                    }
+                }
+            });
+
+            layersList.addEventListener('input', e => {
+                if (e.target.classList.contains('layer-opacity-slider')) {
+                    const layerDiv = e.target.closest('.layer-item');
+                    const allLayerDivs = Array.from(layersList.children);
+                    const clickedUIIndex = allLayerDivs.indexOf(layerDiv);
+                    const clickedDataIndex = timelineFramesData[currentFrameIndex].layers.length - 1 - clickedUIIndex;
+                    
+                    timelineFramesData[currentFrameIndex].layers[clickedDataIndex].opacity = parseInt(e.target.value) / 100;
+                    renderCanvas();
+                }
+            });
+            
+            addLayerBtn.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                if (e.button === 0) {
+                    stampSelection();
+                    const currentLayers = timelineFramesData[currentFrameIndex].layers;
+                    const newLayerName = `Camada ${currentLayers.length}`;
+                    currentLayers.push(createLayer(newLayerName));
+                    currentLayerIndex = currentLayers.length - 1;
+                    updateUI();
+                    renderCanvas();
+                }
+            });
+            
+            addLayerBtn.addEventListener('click', () => {
+                stampSelection();
+                const currentLayers = timelineFramesData[currentFrameIndex].layers;
+                currentLayers.push(createLayer(`Camada ${currentLayers.length}`));
+                currentLayerIndex = currentLayers.length - 1;
+                renderCanvas(); updateUI();
+            });
+
+            onionSkinBtn.addEventListener('click', () => {
+                onionSkinning = !onionSkinning;
+                onionSkinBtn.classList.toggle('active', onionSkinning);
+                renderCanvas();
+            });
+            onionOpacitySlider.addEventListener('input', (e) => {
+                onionOpacity = parseInt(e.target.value) / 100;
+                if(onionSkinning) renderCanvas();
+            });
+            
+            fpsSlider.addEventListener('input', (e) => {
+                frameRate = parseInt(e.target.value);
+                fpsValue.textContent = frameRate;
+                updateTimelineWidths();
+            });
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+                
+                if (e.code === 'Space') {
+                    e.preventDefault(); togglePlayState();
+                } else if (e.code === 'ArrowRight') {
+                    goToNextFrame();
+                } else if (e.code === 'ArrowLeft') {
+                    goToPrevFrame();
+                } else if (e.ctrlKey && e.code === 'KeyZ') {
+                    e.preventDefault(); undo();
+                } else if (e.ctrlKey && e.code === 'KeyY') {
+                    e.preventDefault(); redo();
+                } else if (e.code === 'Escape' && selectionCanvas) {
+                    stampSelection();
+                }
+            });
+            
+            // --- Lógica do Menu de Arquivo e Exportação/Salvar ---
+            
+            function showLoadingModal(message) {
+                loadingMessage.textContent = message;
+                loadingModal.classList.remove('hidden');
+            }
+            
+            function hideLoadingModal() {
+                loadingModal.classList.add('hidden');
+            }
+
+            function getFrameAsCanvas(frameIndex, transparent = false) {
+                const frameData = timelineFramesData[frameIndex];
+                if (!frameData) return null;
+
+                const compositeCanvas = document.createElement('canvas');
+                compositeCanvas.width = CANVAS_WIDTH;
+                compositeCanvas.height = CANVAS_HEIGHT;
+                const compositeCtx = compositeCanvas.getContext('2d');
+                
+                if (!transparent) {
+                    compositeCtx.fillStyle = '#ffffff';
+                    compositeCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                }
+
+                const tempLayerCanvas = document.createElement('canvas');
+                tempLayerCanvas.width = CANVAS_WIDTH;
+                tempLayerCanvas.height = CANVAS_HEIGHT;
+                const tempLayerCtx = tempLayerCanvas.getContext('2d');
+
+                for (const layer of frameData.layers) {
+                    if (layer.visible && (!transparent || !layer.isBackground)) {
+                        const layerImageData = layer.history[layer.historyIndex];
+                        if (layerImageData) {
+                            tempLayerCtx.putImageData(layerImageData, 0, 0);
+                            compositeCtx.globalAlpha = layer.opacity;
+                            compositeCtx.drawImage(tempLayerCanvas, 0, 0);
+                            tempLayerCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                        }
+                    }
+                }
+                compositeCtx.globalAlpha = 1.0;
+                return compositeCanvas;
+            }
+            
+            // Nova função para misturar todas as faixas de áudio em um único AudioBuffer
+            async function mixAllAudioTracks() {
+                if (!audioContext || audioTracks.length === 0) {
+                    return null;
+                }
+
+                const totalDuration = timelineFramesData.length / frameRate;
+                const totalSamples = Math.ceil(totalDuration * audioContext.sampleRate);
+                const mixedBuffer = audioContext.createBuffer(2, totalSamples, audioContext.sampleRate);
+                
+                const channelDataL = mixedBuffer.getChannelData(0);
+                const channelDataR = mixedBuffer.numberOfChannels > 1 ? mixedBuffer.getChannelData(1) : mixedBuffer.getChannelData(0);
+
+                for (const track of audioTracks) {
+                    const trackOffset = Math.floor(track.timelineStart * audioContext.sampleRate);
+                    const trimStartSamples = Math.floor(track.trimStart * track.originalBuffer.sampleRate);
+                    const trimDurationSamples = Math.ceil(track.trimDuration * track.originalBuffer.sampleRate);
+
+                    const trackDataL = track.originalBuffer.getChannelData(0);
+                    const trackDataR = track.originalBuffer.numberOfChannels > 1 ? track.originalBuffer.getChannelData(1) : trackDataL;
+
+                    for (let i = 0; i < trimDurationSamples; i++) {
+                        const targetIndex = trackOffset + i;
+                        const sourceIndex = trimStartSamples + i;
+
+                        if (targetIndex < totalSamples && sourceIndex < track.originalBuffer.length) {
+                            channelDataL[targetIndex] += trackDataL[sourceIndex];
+                            channelDataR[targetIndex] += trackDataR[sourceIndex];
+                        }
+                    }
+                }
+                
+                return mixedBuffer;
+            }
+
+           // Função de exportação de vídeo corrigida
+           async function exportAsVideo(transparent = false, withAudio = false) {
+                if (timelineFramesData.length === 0) {
+                    showMessage('Erro', 'Não há quadros para exportar.');
+                    return;
+                }
+
+                showLoadingModal('Preparando vídeo...');
+                
+                const offscreenCanvas = document.createElement('canvas');
+                offscreenCanvas.width = CANVAS_WIDTH;
+                offscreenCanvas.height = CANVAS_HEIGHT;
+                const offscreenCtx = offscreenCanvas.getContext('2d');
+                
+                // O frameRate deve ser uma variável acessível aqui (ex: const frameRate = 24;)
+                const videoStream = offscreenCanvas.captureStream(frameRate);
+                
+                let audioStream = null;
+                let audioBufferSource = null; // Guardar a referência do buffer source
+                if (withAudio) {
+                    if (!audioContext) {
+                        audioContext = new AudioContext();
+                    }
+                    try {
+                        const mixedAudioBuffer = await mixAllAudioTracks();
+                        if (mixedAudioBuffer) {
+                            const destination = audioContext.createMediaStreamDestination();
+                            audioBufferSource = audioContext.createBufferSource(); // Atribuir à variável
+                            
+                            audioBufferSource.buffer = mixedAudioBuffer;
+                            audioBufferSource.connect(destination);
+                            audioBufferSource.start(0);
+
+                            audioStream = destination.stream;
+                        }
+                    } catch (error) {
+                        console.error('Erro ao misturar áudio para exportação:', error);
+                        showMessage('Erro', 'Não foi possível processar o áudio para exportação.');
+                        hideLoadingModal(); // Esconder o modal em caso de erro
+                        return;
+                    }
+                }
+
+                const combinedStream = new MediaStream();
+                videoStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
+                if (audioStream) {
+                    audioStream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
+                }
+
+                // Use 'video/webm;codecs=vp8' para maior compatibilidade, ou vp9 se preferir
+                const recorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm; codecs=vp8' });
+                const chunks = [];
+                
+                recorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        chunks.push(e.data);
+                    }
+                };
+                
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const fileName = `animacao${withAudio ? '_com_audio' : ''}${transparent ? '_transparente' : ''}.webm`;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    hideLoadingModal();
+                    showMessage('Sucesso', 'Vídeo exportado com sucesso!');
+                };
+                
+                recorder.start();
+                
+                // --- INÍCIO DA LÓGICA CORRIGIDA ---
+                
+                const totalFrames = timelineFramesData.length;
+                const interval = 1000 / frameRate;
+
+                // Função auxiliar para criar uma pausa
+                const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+                // Loop de renderização síncrono com 'await'
+                for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
+                    // Limpa o canvas e desenha o novo quadro
+                    offscreenCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                    const frameCanvas = getFrameAsCanvas(frameIndex, transparent);
+                    offscreenCtx.drawImage(frameCanvas, 0, 0);
+
+                    // Atualiza a mensagem de progresso
+                    loadingMessage.textContent = `Renderizando vídeo... ${Math.round(((frameIndex + 1) / totalFrames) * 100)}%`;
+                    
+                    // Pausa a execução pelo tempo de um frame
+                    // Isso garante que o MediaRecorder tenha tempo de capturar o quadro
+                    await wait(interval);
+                }
+                
+                // Após o loop, pare tudo
+                recorder.stop();
+
+                // Boa prática: pare as faixas para liberar recursos
+                combinedStream.getTracks().forEach(track => track.stop());
+                if (audioBufferSource) {
+                    audioBufferSource.stop();
+                }
+                
+                // --- FIM DA LÓGICA CORRIGIDA ---
+           }
+            async function exportAsPngSequence(transparent = false) {
+                if (timelineFramesData.length === 0) {
+                    showMessage('Erro', 'Não há quadros para exportar.');
+                    return;
+                }
+                showLoadingModal('Preparando PNGs...');
+                const zip = new JSZip();
+
+                for (let i = 0; i < timelineFramesData.length; i++) {
+                    const frameCanvas = getFrameAsCanvas(i, transparent);
+                    const blob = await new Promise(resolve => frameCanvas.toBlob(resolve, 'image/png'));
+                    const frameNumber = String(i + 1).padStart(4, '0');
+                    zip.file(`frame_${frameNumber}.png`, blob);
+                }
+                
+                showLoadingModal('Gerando arquivo ZIP...');
+                zip.generateAsync({ type: "blob" }).then(function(content) {
+                    const url = URL.createObjectURL(content);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `animacao_frames${transparent ? '_transparente' : ''}.zip`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    hideLoadingModal();
+                    showMessage('Sucesso', 'Sequência de PNGs exportada com sucesso!');
+                });
+            }
+
+            // --- UPDATE: Salvar/Carregar Projeto Otimizado ---
+
+            async function saveProject() {
+                if (timelineFramesData.length === 0) {
+                    showMessage('Aviso', 'O projeto está vazio. Adicione alguns quadros para salvar.');
+                    return;
+                }
+                showLoadingModal('Preparando o projeto...');
+
+                try {
+                    const zip = new JSZip();
+                    const framesFolder = zip.folder("frames");
+
+                    const serializableAudioTracks = audioTracks.map(track => ({
+                        id: track.id,
+                        fileName: track.fileName,
+                        timelineStart: track.timelineStart,
+                        trimStart: track.trimStart,
+                        trimDuration: track.trimDuration,
+                    }));
+                    
+                    const serializableFrames = JSON.parse(JSON.stringify(timelineFramesData, (key, value) => {
+                        if (value instanceof ImageData) {
+                             return { _isImageData: true, width: value.width, height: value.height };
+                        }
+                        return value;
+                    }));
+
+                    for (let f_idx = 0; f_idx < timelineFramesData.length; f_idx++) {
+                        loadingMessage.textContent = `Processando Frame ${f_idx + 1}/${timelineFramesData.length}...`;
+                        await new Promise(resolve => setTimeout(resolve, 0)); // Yield to main thread
+                        for (let l_idx = 0; l_idx < timelineFramesData[f_idx].layers.length; l_idx++) {
+                            const layer = timelineFramesData[f_idx].layers[l_idx];
+                            for (let h_idx = 0; h_idx < layer.history.length; h_idx++) {
+                                const imageData = layer.history[h_idx];
+                                const fileName = `f${f_idx}_l${l_idx}_h${h_idx}.bin`;
+                                framesFolder.file(fileName, imageData.data.buffer); // CORREÇÃO: Usar .buffer que é um ArrayBuffer
+                                serializableFrames[f_idx].layers[l_idx].history[h_idx] = fileName;
+                            }
+                        }
+                    }
+
+                    const projectData = {
+                        version: '2.0.0', // Formato de salvamento profissional
+                        canvasSize: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
+                        fps: frameRate,
+                        timelineFrames: serializableFrames,
+                        audioTracks: serializableAudioTracks
+                    };
+
+                    zip.file("project.json", JSON.stringify(projectData));
+
+                    const audioFolder = zip.folder("audio");
+                    audioTracks.forEach(track => {
+                        audioFolder.file(track.fileName, track.arrayBuffer);
+                    });
+
+                    showLoadingModal('Compactando projeto...');
+                    const content = await zip.generateAsync({
+                        type: "blob",
+                        compression: "DEFLATE",
+                        compressionOptions: { level: 6 }
+                    }, (metadata) => {
+                         loadingMessage.textContent = `Compactando... ${metadata.percent.toFixed(0)}%`;
+                    });
+                    
+                    const url = URL.createObjectURL(content);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'meu_projeto.adproj'; 
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    hideLoadingModal();
+                    showMessage('Sucesso', 'Projeto salvo com sucesso!');
+
+                } catch (error) {
+                    console.error("Erro ao salvar o projeto:", error);
+                    hideLoadingModal();
+                    showMessage('Erro', `Ocorreu um erro ao salvar o projeto: ${error.message}`);
+                }
+            }
+            
+            async function loadProject(file) {
+                if (!file) return;
+                if (!file.name.endsWith('.adproj') && !file.name.endsWith('.zip')) {
+                    showMessage('Erro', 'Por favor, selecione um arquivo de projeto válido (.adproj).');
+                    return;
+                }
+                showLoadingModal('Abrindo projeto...');
+                try {
+                    const zip = await JSZip.loadAsync(file);
+                    const projectJsonFile = zip.file("project.json");
+                    if (!projectJsonFile) throw new Error("Arquivo project.json não encontrado.");
+
+                    const content = await projectJsonFile.async("string");
+                    const projectData = JSON.parse(content);
+                    
+                    // Lida com o formato antigo como fallback
+                    if (!projectData.version || projectData.version < '2.0.0') {
+                        return loadOldProjectFormat(content);
+                    }
+
+                    const framesFolder = zip.folder("frames");
+                    if (!framesFolder) throw new Error("Pasta 'frames' não encontrada no projeto.");
+
+                    const loadedFrames = projectData.timelineFrames;
+
+                    for (let f_idx = 0; f_idx < loadedFrames.length; f_idx++) {
+                        showLoadingModal(`Carregando Frame ${f_idx + 1}/${loadedFrames.length}...`);
+                        await new Promise(resolve => setTimeout(resolve, 0)); // Yield
+                        for (let l_idx = 0; l_idx < loadedFrames[f_idx].layers.length; l_idx++) {
+                            const layer = loadedFrames[f_idx].layers[l_idx];
+                            for (let h_idx = 0; h_idx < layer.history.length; h_idx++) {
+                                const fileName = layer.history[h_idx];
+                                const imageFile = framesFolder.file(fileName);
+                                if (!imageFile) {
+                                    console.error(`Arquivo de imagem não encontrado: ${fileName}`);
+                                    layer.history[h_idx] = new ImageData(projectData.canvasSize.width, projectData.canvasSize.height);
+                                    continue;
+                                }
+                                const data = await imageFile.async("uint8array");
+                                const imageData = new ImageData(
+                                    new Uint8ClampedArray(data.buffer),
+                                    projectData.canvasSize.width,
+                                    projectData.canvasSize.height
+                                );
+                                layer.history[h_idx] = imageData;
+                            }
+                        }
+                    }
+                    timelineFramesData = loadedFrames;
+
+                    audioTracks = [];
+                    if (projectData.audioTracks && projectData.audioTracks.length > 0) {
+                        showLoadingModal('Decodificando áudios...');
+                        if (!audioContext) audioContext = new AudioContext();
+                        const audioPromises = projectData.audioTracks.map(async (trackMeta) => {
+                            const audioFile = zip.file(`audio/${trackMeta.fileName}`);
+                            if (!audioFile) {
+                                console.warn(`Arquivo de áudio ${trackMeta.fileName} não encontrado.`);
+                                return null;
+                            }
+                            const arrayBuffer = await audioFile.async("arraybuffer");
+                            const originalBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+                            return { ...trackMeta, arrayBuffer, originalBuffer, element: null };
+                        });
+                        const loadedTracks = await Promise.all(audioPromises);
+                        audioTracks = loadedTracks.filter(track => track !== null);
+                    }
+                    
+                    frameRate = projectData.fps || 12;
+                    fpsSlider.value = frameRate;
+                    fpsValue.textContent = frameRate;
+                    currentFrameIndex = 0;
+                    currentLayerIndex = timelineFramesData[0]?.layers.length > 1 ? 1 : 0;
+                    
+                    renderCanvas();
+                    updateUI();
+                    renderAllAudioTracks();
+                    updateTimelineWidths();
+                    hideLoadingModal();
+                    showMessage('Sucesso', 'Projeto carregado com sucesso!');
+                } catch (error) {
+                    console.error("Erro ao carregar projeto:", error);
+                    hideLoadingModal();
+                    showMessage('Erro', `Não foi possível ler o arquivo do projeto. Pode estar corrompido. Detalhe: ${error.message}`);
+                } finally {
+                    loadProjectInput.value = '';
+                }
+            }
+
+            function loadOldProjectFormat(jsonContent) {
+                try {
+                    showLoadingModal('Convertendo projeto antigo...');
+                    const reviver = (key, value) => {
+                        if (value && value._isImageData) {
+                            return new ImageData(new Uint8ClampedArray(value.data), value.width, value.height);
+                        }
+                        return value;
+                    };
+                    const projectData = JSON.parse(jsonContent, reviver);
+                    timelineFramesData = projectData.timelineFrames;
+                    frameRate = projectData.fps || 12;
+                    fpsSlider.value = frameRate;
+                    fpsValue.textContent = frameRate;
+                    audioTracks = [];
+                    currentFrameIndex = 0;
+                    currentLayerIndex = timelineFramesData[0]?.layers.length > 1 ? 1 : 0;
+                    
+                    renderCanvas();
+                    updateUI();
+                    renderAllAudioTracks();
+                    updateTimelineWidths();
+                    hideLoadingModal();
+                    showMessage('Sucesso', 'Projeto em formato antigo carregado! Salve-o novamente para atualizar para o novo formato.');
+                } catch(e) {
+                    throw new Error("Não foi possível carregar o projeto no formato antigo.");
+                }
+            }
+
+
+       function importImage(file) {
+            if (timelineFramesData.length === 0) {
+                showMessage('Aviso', 'Crie um quadro e uma camada antes de importar uma imagem.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Limpa qualquer seleção anterior, aplicando-a na camada.
+                    if (selectionCanvas) {
+                        stampSelection();
+                    }
+
+                    // Cria um canvas temporário com a imagem.
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = img.width;
+                    tempCanvas.height = img.height;
+                    tempCanvas.getContext('2d').drawImage(img, 0, 0);
+
+                    // Atribui este canvas à variável global de seleção.
+                    selectionCanvas = tempCanvas;
+
+                    // Calcula e define as dimensões e posição da transformação.
+                    const scaleFactor = Math.min(
+                        1, 
+                        CANVAS_WIDTH / img.width, 
+                        CANVAS_HEIGHT / img.height
+                    );
+
+                    const displayWidth = img.width * scaleFactor;
+                    const displayHeight = img.height * scaleFactor;
+                    const x = (CANVAS_WIDTH - displayWidth) / 2;
+                    const y = (CANVAS_HEIGHT - displayHeight) / 2;
+
+                    selectionTransform = {
+                        x, 
+                        y, 
+                        width: displayWidth, 
+                        height: displayHeight, 
+                        rotation: 0 
+                    };
+                    
+                    // Ativa a ferramenta de seleção e renderiza. A imagem é agora uma seleção flutuante.
+                    setTool('selection');
+                    renderCanvas();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            importImageInput.value = '';
+        }
+            // MODIFICAÇÃO na função importAudio
+            async function importAudio(file) {
+                if (!audioContext) {
+                    audioContext = new AudioContext();
+                }
+                showLoadingModal(`Processando: ${file.name}`);
+                
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    // Crie uma cópia do ArrayBuffer para guardar, pois decodeAudioData pode "consumi-lo"
+                    const savedArrayBuffer = arrayBuffer.slice(0); 
+                    const originalBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    
+                    let newTrack = {
+                        id: `audio_${Date.now()}_${Math.random()}`, // ID mais robusto
+                        fileName: file.name, // <-- IMPORTANTE: guardar nome do arquivo
+                        arrayBuffer: savedArrayBuffer, // <-- IMPORTANTE: guardar os dados do arquivo original
+                        originalBuffer: originalBuffer,
+                        timelineStart: getNextAudioStart(),
+                        trimStart: 0,
+                        trimDuration: Math.min(originalBuffer.duration, 2),
+                        element: null
+                    };
+
+                    audioTracks.push(newTrack);
+                    renderAllAudioTracks();
+                    hideLoadingModal();
+                } catch (error) {
+                    console.error('Erro ao decodificar áudio:', error);
+                    hideLoadingModal();
+                    showMessage('Erro', `Não foi possível carregar o arquivo de áudio: ${file.name}.`);
+                }
+                importAudioInput.value = '';
+            }
+
+
+            function getNextAudioStart() {
+                if (audioTracks.length === 0) return 0;
+                let maxEnd = 0;
+                audioTracks.forEach(track => {
+                    maxEnd = Math.max(maxEnd, track.timelineStart + track.trimDuration);
+                });
+                return maxEnd;
+            }
+            
+            function sliceAudioBuffer(buffer, start, duration) {
+                const end = start + duration;
+                if (duration <= 0 || start < 0 || end > buffer.duration + 0.01) {
+                    return null;
+                }
+                const newBuffer = audioContext.createBuffer(
+                    buffer.numberOfChannels,
+                    Math.ceil(buffer.sampleRate * duration),
+                    buffer.sampleRate
+                );
+                for (let i = 0; i < buffer.numberOfChannels; i++) {
+                    const newChannelData = newBuffer.getChannelData(i);
+                    const oldChannelData = buffer.getChannelData(i);
+                    const startSample = Math.floor(start * buffer.sampleRate);
+                    const endSample = startSample + newChannelData.length;
+                    newChannelData.set(oldChannelData.subarray(startSample, endSample));
+                }
+                return newBuffer;
+            }
+            
+            function deleteAudioTrack(trackId) {
+                const trackIndex = audioTracks.findIndex(t => t.id === trackId);
+                if (trackIndex > -1) {
+                    audioTracks.splice(trackIndex, 1);
+                    renderAllAudioTracks();
+                }
+            }
+            
+            function renderAllAudioTracks() {
+                if(!audioTimelineWrapper) return;
+                audioTimelineWrapper.innerHTML = '';
+                audioTracks.forEach(track => {
+                    const clipElement = createAudioClipUI(track);
+                    audioTimelineWrapper.appendChild(clipElement);
+                });
+                updateTimelineWidths();
+            }
+
+
+            function createAudioClipUI(track) {
+                const clip = document.createElement('div');
+                clip.className = 'audio-clip';
+                clip.dataset.trackId = track.id;
+
+                const waveformCanvas = document.createElement('canvas');
+                waveformCanvas.className = 'waveform-canvas';
+
+                const handleLeft = document.createElement('div');
+                handleLeft.className = 'resize-handle left';
+
+                const handleRight = document.createElement('div');
+                handleRight.className = 'resize-handle right';
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-audio-btn';
+                deleteBtn.textContent = 'X';
+                deleteBtn.title = 'Excluir Áudio';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteAudioTrack(track.id);
+                });
+                
+                clip.append(deleteBtn, waveformCanvas, handleLeft, handleRight);
+                track.element = clip;
+
+                drawWaveform(waveformCanvas, track.originalBuffer);
+                updateAudioClipUI(track);
+                
+                return clip;
+            }
+
+            function drawWaveform(canvas, buffer) {
+                const PIXELS_PER_SECOND = 100;
+                const ctx = canvas.getContext('2d');
+                const data = buffer.getChannelData(0);
+                
+                const canvasWidth = buffer.duration * PIXELS_PER_SECOND;
+                const height = audioTrackContainer.offsetHeight;
+                
+                canvas.width = canvasWidth;
+                canvas.height = height;
+                
+                ctx.strokeStyle = 'rgba(200, 200, 255, 0.9)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+
+                const totalSamples = data.length;
+                const step = Math.ceil(totalSamples / canvas.width);
+                const amp = height / 2;
+                
+                for (let i = 0; i < canvas.width; i++) {
+                    let min = 1.0;
+                    let max = -1.0;
+                    for (let j = 0; j < step; j++) {
+                        const index = (i * step) + j;
+                        if(index < totalSamples) {
+                            const datum = data[index];
+                            if (datum < min) min = datum;
+                            if (datum > max) max = datum;
+                        }
+                    }
+                    ctx.moveTo(i, (1 + min) * amp);
+                    ctx.lineTo(i, (1 + max) * amp);
+                }
+                ctx.stroke();
+            }
+            
+            function updateTimelineWidths() {
+                const PIXELS_PER_SECOND = 100;
+                const animationDuration = timelineFramesData.length / frameRate;
+
+                let maxAudioTime = 0;
+                audioTracks.forEach(track => {
+                    maxAudioTime = Math.max(maxAudioTime, track.timelineStart + track.trimDuration);
+                });
+
+                const totalDuration = Math.max(animationDuration, maxAudioTime);
+                const totalWidth = totalDuration * PIXELS_PER_SECOND;
+
+                if (audioTimelineWrapper) {
+                    audioTimelineWrapper.style.width = `${Math.max(audioTrackContainer.offsetWidth, totalWidth)}px`;
+                }
+            }
+
+
+            function updateAudioClipUI(track) {
+                if (!track || !track.element) return;
+                const PIXELS_PER_SECOND = 100;
+                
+                const clipLeft = track.timelineStart * PIXELS_PER_SECOND;
+                const clipWidth = track.trimDuration * PIXELS_PER_SECOND;
+                track.element.style.left = `${clipLeft}px`;
+                track.element.style.width = `${clipWidth}px`;
+                
+                const waveformCanvas = track.element.querySelector('.waveform-canvas');
+                const tempWaveformCanvas = document.createElement('canvas');
+                tempWaveformCanvas.width = track.originalBuffer.duration * PIXELS_PER_SECOND;
+                tempWaveformCanvas.height = waveformCanvas.height;
+                drawWaveform(tempWaveformCanvas, track.originalBuffer);
+                
+                const tempCtx = waveformCanvas.getContext('2d');
+                tempCtx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+                waveformCanvas.width = clipWidth;
+                
+                const sourceX = track.trimStart * PIXELS_PER_SECOND;
+                tempCtx.drawImage(tempWaveformCanvas, -sourceX, 0);
+
+                updateTimelineWidths();
+            }
+
+
+            fileMenuBtn.addEventListener('click', (e) => {
+                           e.stopPropagation();
+                           fileMenu.classList.toggle('hidden');
+            });
+            
+            exportPngBtn.addEventListener('click', () => { exportAsPngSequence(); fileMenu.classList.add('hidden'); });
+            exportTransparentPngBtn.addEventListener('click', () => { exportAsPngSequence(true); fileMenu.classList.add('hidden'); });
+            exportVideoBtn.addEventListener('click', () => { exportAsVideo(false, false); fileMenu.classList.add('hidden'); });
+            exportTransparentVideoBtn.addEventListener('click', () => { exportAsVideo(true, false); fileMenu.classList.add('hidden'); });
+            exportVideoAudioBtn.addEventListener('click', () => { exportAsVideo(false, true); fileMenu.classList.add('hidden'); });
+            exportTransparentVideoAudioBtn.addEventListener('click', () => { exportAsVideo(true, true); fileMenu.classList.add('hidden'); });
+            saveProjectBtn.addEventListener('click', () => { saveProject(); fileMenu.classList.add('hidden'); });
+            loadProjectBtn.addEventListener('click', () => { loadProjectInput.click(); fileMenu.classList.add('hidden'); });
+            loadProjectInput.addEventListener('change', (e) => { loadProject(e.target.files[0]); });
+            importImageBtn.addEventListener('click', () => { importImageInput.click(); fileMenu.classList.add('hidden'); });
+            importImageInput.addEventListener('change', (e) => { if (e.target.files[0]) { importImage(e.target.files[0]); } });
+            importAudioBtn.addEventListener('click', () => { importAudioInput.click(); fileMenu.classList.add('hidden'); });
+            importAudioInput.addEventListener('change', (e) => { 
+                for(const file of e.target.files) {
+                    importAudio(file);
+                }
+            });
+
+            
+            function setupInitialLayers() {
+                const firstFrame = {
+                    layers: [
+                        createLayer('Background', { isBackground: true, fillWhite: true }),
+                        createLayer('Camada 1')
+                    ]
+                };
+                timelineFramesData.push(firstFrame);
+                currentLayerIndex = 1; 
+            }
+            
+            // --- Lógica de Interação de Áudio ---
+            const PIXELS_PER_SECOND = 100;
+            const timePerPixel = 1 / PIXELS_PER_SECOND;
+            let audioInteractionMode = null;
+            let audioInteractionStartX = 0;
+            let initialAudioState = {};
+            let activeTrackId = null;
+
+            audioTimelineWrapper.addEventListener('pointerdown', (e) => {
+                const targetClipEl = e.target.closest('.audio-clip');
+                const isResizeHandle = e.target.classList.contains('resize-handle');
+                const isDeleteBtn = e.target.classList.contains('delete-audio-btn');
+
+                if (!targetClipEl || isDeleteBtn) return;
+
+                if (e.button !== 0 && !isResizeHandle) {
+                    return;
+                }
+
+                activeTrackId = targetClipEl.dataset.trackId;
+                const track = audioTracks.find(t => t.id === activeTrackId);
+                if (!track) return;
+
+                audioInteractionStartX = e.clientX;
+                initialAudioState = {
+                    timelineStart: track.timelineStart,
+                    trimStart: track.trimStart,
+                    trimDuration: track.trimDuration
+                };
+
+                if (isResizeHandle) {
+                    audioInteractionMode = e.target.classList.contains('left') ? 'resize-left' : 'resize-right';
+                } else {
+                    audioInteractionMode = 'drag-clip';
+                    targetClipEl.classList.add('dragging');
+                }
+
+                e.preventDefault();
+
+                const onMouseMove = (moveEvent) => {
+                    if (!audioInteractionMode || !activeTrackId) return;
+                    const activeTrack = audioTracks.find(t => t.id === activeTrackId);
+                    if (!activeTrack) return;
+
+                    const dx = moveEvent.clientX - audioInteractionStartX;
+                    const deltaTime = dx * timePerPixel;
+
+                    if (audioInteractionMode === 'drag-clip') {
+                        const newTimelineStart = initialAudioState.timelineStart + deltaTime;
+                        activeTrack.timelineStart = Math.max(0, newTimelineStart);
+                    } else if (audioInteractionMode === 'resize-left') {
+                        const newTrimStart = initialAudioState.trimStart + deltaTime;
+                        const newTrimDuration = initialAudioState.trimDuration - deltaTime;
+
+                        if (newTrimDuration > 0.1 && newTrimStart >= 0) {
+                            activeTrack.trimStart = newTrimStart;
+                            activeTrack.trimDuration = newTrimDuration;
+                            activeTrack.timelineStart = initialAudioState.timelineStart + deltaTime;
+                        }
+                    } else if (audioInteractionMode === 'resize-right') {
+                        const newTrimDuration = initialAudioState.trimDuration + deltaTime;
+                        if (newTrimDuration > 0.1 && (activeTrack.trimStart + newTrimDuration) <= activeTrack.originalBuffer.duration) {
+                            activeTrack.trimDuration = newTrimDuration;
+                        }
+                    }
+                    updateAudioClipUI(activeTrack);
+                };
+
+                const onMouseUp = () => {
+                    if (targetClipEl) {
+                        targetClipEl.classList.remove('dragging');
+                    }
+                    audioInteractionMode = null;
+                    document.removeEventListener('pointermove', onMouseMove);
+                    document.removeEventListener('pointerup', onMouseUp);
+                };
+
+                document.addEventListener('pointermove', onMouseMove);
+                document.addEventListener('pointerup', onMouseUp);
+            });
+
+
+            // Initial setup
+            setupInitialLayers();
+            updateUI();
+            renderCanvas();
+            animate();
+        });
+    </script>
+</body>
+</html>
+
