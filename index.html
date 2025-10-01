@@ -308,7 +308,7 @@
 
                 <div class="flex flex-col items-center space-y-2">
                     <label class="text-xs text-gray-400">Opacidade</label>
-                    <input type="range" id="brush-opacity" min="0" max="100" value="100" class="vertical-slider">
+                    <input type="range" id="brush-opacity" min="1" max="100" value="100" class="vertical-slider">
                 </div>
                 
                 <div class="border-t border-zinc-600 w-full my-2"></div>
@@ -1556,20 +1556,55 @@
             // --- FIM DA LÓGICA CORRIGIDA ---
 
 
-            // --- INÍCIO DA CORREÇÃO DA OPACIDADE ---
-            brushOpacitySlider.addEventListener('input', (e) => {
-                const sliderValue = parseInt(e.target.value);
-                
-                // A lógica anterior calculava a opacidade de forma incorreta.
-                // Esta nova lógica mapeia linearmente o valor do slider (0-100) para a opacidade (0.0-1.0).
-                currentBrush.opacity = sliderValue / 100;
 
-                // Salva o valor do slider (0-100) na configuração do pincel atual, se não for a borracha
-                if (currentTool === 'brush') {
-                    brushesConfig[currentBrush.type].opacityValue = sliderValue;
-                }
-            });
-            // --- FIM DA CORREÇÃO DA OPACIDADE ---
+
+
+
+
+
+// --- INÍCIO DA LÓGICA DE OPACIDADE NÃO LINEAR ---
+brushOpacitySlider.addEventListener('input', (e) => {
+    const sliderValue = parseInt(e.target.value);
+    let newOpacity;
+
+    // Lógica para o intervalo de 0 a 99 (mapeia para 1% a 5%)
+    if (sliderValue <= 99) {
+        // 1. Calcula a progressão dentro do intervalo 0-99 (um valor de 0.0 a 1.0)
+        const progress = sliderValue / 99; 
+        
+        // 2. Define o intervalo de opacidade desejado (5% - 1% = 4%)
+        const opacityRange = 0.05 - 0.02; 
+        
+        // 3. Calcula a opacidade final começando em 1% e adicionando a progressão
+        newOpacity = 0.002 + (progress * opacityRange);
+    } 
+    // Lógica para quando o valor for exatamente 100
+    else {
+        newOpacity = 1; // 100% de opacidade
+    }
+
+    currentBrush.opacity = newOpacity;
+
+    // Salva o valor original do slider (0-100) para poder restaurá-lo ao trocar de pincel
+    if (currentTool === 'brush') {
+        brushesConfig[currentBrush.type].opacityValue = sliderValue;
+    }
+});
+// --- FIM DA LÓGICA DE OPACIDADE NÃO LINEAR ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
             colorPickerContainer.addEventListener('click', () => {
                 colorPicker.click();
