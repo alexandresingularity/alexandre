@@ -337,8 +337,8 @@
                 <div class="flex items-center space-x-2">
                     <button id="eyedropper-btn" class="icon-btn p-2 rounded-full text-gray-300 bg-zinc-700" title="Conta-Gotas">
                          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 2.625c2.28 2.26 6 6.55 6 10.375 0 3.52-2.686 6-6 6s-6-2.48-6-6c0-3.82 3.72-8.11 6-10.375z"></path>
-                        </svg>
+                              <path d="M12 2.625c2.28 2.26 6 6.55 6 10.375 0 3.52-2.686 6-6 6s-6-2.48-6-6c0-3.82 3.72-8.11 6-10.375z"></path>
+                         </svg>
                     </button>
                     <button id="paint-bucket-btn" class="icon-btn p-2 rounded-full text-gray-300 bg-zinc-700" title="Balde de Tinta">
                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5.4 19.83L6.5 21.5L9 21.5L10 20.5L12.5 23L15 20.5L16 21.5L18.5 21.5L19.6 19.83L12.5 12.75L5.4 19.83M20 7A2 2 0 0 0 18 5H6A2 2 0 0 0 4 7V11C4 11.36 4.07 11.72 4.2 12.05L12.5 3.73L20.8 12.05C20.93 11.72 21 11.36 21 11V7H20Z" /></svg>
@@ -519,13 +519,35 @@
 
             // State
             let isDrawing = false;
-            brushSizeSlider.value = brushSizeSlider.min;
+            
+            // --- INÍCIO DA CORREÇÃO DO BUG DOS PINCÉIS ---
+            const brushesConfig = {
+                'normal':   { size: 1, opacityValue: 100 },
+                'pencil':   { size: 1, opacityValue: 100 },
+                'airbrush': { size: 1, opacityValue: 100 },
+                'spray':    { size: 1, opacityValue: 100 }
+            };
+
             let currentBrush = {
-                size: parseInt(brushSizeSlider.value),
-                opacity: parseInt(brushOpacitySlider.value) / 100,
+                size: brushesConfig.normal.size,
+                opacity: 1.0, // Será recalculado pela lógica do slider
                 color: colorPicker.value,
                 type: 'normal'
             };
+            
+            function updateBrushUI(type) {
+                if (!brushesConfig[type]) return;
+                
+                const config = brushesConfig[type];
+                brushSizeSlider.value = config.size;
+                brushOpacitySlider.value = config.opacityValue;
+
+                // Dispara o evento 'input' manualmente para recalcular a opacidade e o tamanho
+                brushOpacitySlider.dispatchEvent(new Event('input'));
+                brushSizeSlider.dispatchEvent(new Event('input'));
+            }
+            // --- FIM DA CORREÇÃO DO BUG DOS PINCÉIS ---
+
             let timelineFramesData = [];
             let currentLayerIndex = 1;
             let currentFrameIndex = 0;
@@ -856,13 +878,22 @@
             }
 
             function drawSpray(px, py, dCtx, pressure = 1.0, brushSize = currentBrush.size) {
-                const density = Math.max(10, Math.round(40 * (0.5 + 0.5 * pressure)));
+                // Densidade e raio ajustados para um efeito de ruído mais disperso, sem linha central
+                const density = Math.max(50, Math.round(150 * pressure)); 
+                const maxRadius = brushSize * 10.0; // Raio bem maior para dispersar as partículas
                 dCtx.fillStyle = currentBrush.color;
                 for (let i = 0; i < density; i++) {
                     const angle = Math.random() * 2 * Math.PI;
-                    const radius = Math.random() * currentBrush.size;
-                    dCtx.globalAlpha = currentBrush.opacity * Math.random();
-                    dCtx.fillRect(px + radius * Math.cos(angle), py + radius * Math.sin(angle), 1, 1);
+                    
+                    // Usa Math.sqrt para uma distribuição mais uniforme, o que ajuda a eliminar o "centro"
+                    const radius = Math.sqrt(Math.random()) * maxRadius;
+                    
+                    const x = px + radius * Math.cos(angle);
+                    const y = py + radius * Math.sin(angle);
+
+                    // Opacidade aleatória para as partículas
+                    dCtx.globalAlpha = currentBrush.opacity * (0.1 + Math.random() * 0.4); 
+                    dCtx.fillRect(x, y, 1, 1);
                 }
             }
 
@@ -879,12 +910,12 @@
 
             function drawAirbrush(px, py, dCtx, pressure = 1.0, brushSize = currentBrush.size) {
                 dCtx.globalAlpha = Math.min(1, currentBrush.opacity * (0.05 + 0.95 * pressure) * 0.1); 
-                const gradient = dCtx.createRadialGradient(px, py, 0, px, py, currentBrush.size / 2);
+                const gradient = dCtx.createRadialGradient(px, py, 0, px, py, brushSize / 2);
                 gradient.addColorStop(0, currentBrush.color);
                 gradient.addColorStop(1, 'transparent');
                 dCtx.fillStyle = gradient;
                 dCtx.beginPath();
-                dCtx.arc(px, py, currentBrush.size / 2, 0, 2 * Math.PI);
+                dCtx.arc(px, py, brushSize / 2, 0, 2 * Math.PI);
                 dCtx.fill();
             }
 
@@ -909,17 +940,13 @@
 
                     switch (currentBrush.type) {
                         case 'pencil':
-                            if (i % 2 === 0) drawCondensedSpray(px, py, dCtx, pressure, localBrushSize);
+                            drawCondensedSpray(px, py, dCtx, pressure, localBrushSize);
                             break;
                         case 'airbrush':
-                           if (i % 5 === 0) drawAirbrush(px, py, dCtx, pressure, localBrushSize);
+                           drawAirbrush(px, py, dCtx, pressure, localBrushSize);
                             break;
                         case 'spray':
-                            if (i % 10 === 0) drawSpray(px, py, dCtx, pressure, localBrushSize);
-                            break;
-                        case 'oil':
-                            const sizeVariation = (Math.random() - 0.5) * (currentBrush.size * 0.2);
-                            drawLine(px, py, lastX + Math.cos(angle) * (i-1), lastY + Math.sin(angle) * (i-1), dCtx, { size: localBrushSize + sizeVariation });
+                            drawSpray(px, py, dCtx, pressure, localBrushSize);
                             break;
                         case 'normal':
                         default:
@@ -1399,14 +1426,14 @@
                 activeHandle = null;
             });
             mainCanvas.addEventListener('mouseout', (e) => {
-                       if (isDrawing) {
+                        if (isDrawing) {
                             stopDrawing();
-                       }
-                       if(isSelecting){
-                           isSelecting = false;
-                           finalizeAndCaptureSelection();
-                       }
-                       activeHandle = null;
+                        }
+                        if(isSelecting){
+                            isSelecting = false;
+                            finalizeAndCaptureSelection();
+                        }
+                        activeHandle = null;
             });
 
             // --- Suporte a mesas digitalizadoras: Pointer Events ---
@@ -1495,91 +1522,54 @@
             });
 
 
-// Adicione uma variável para guardar o tamanho do pincel antes de mudar para a borracha
-let lastBrushSize = parseInt(brushSizeSlider.value);
-const MAX_BRUSH_SIZE = parseInt(brushSizeSlider.max); // Pega o valor máximo do slider
+            // --- INÍCIO DA LÓGICA CORRIGIDA PARA PINCEL E BORRACHA ---
+            let lastBrushSize = parseInt(brushSizeSlider.value);
+            const MAX_BRUSH_SIZE = parseInt(brushSizeSlider.max);
 
-toolSwitch.addEventListener('change', (e) => {
-    if (e.target.checked) {
-        // Se a borracha for ativada
-        setTool('eraser');
-        lastBrushSize = parseInt(brushSizeSlider.value);
-        
-        // Calcula o novo tamanho, limitando-o ao valor máximo
-        const newEraserSize = Math.min(lastBrushSize * 16, MAX_BRUSH_SIZE);
-
-        brushSizeSlider.value = newEraserSize;
-        currentBrush.size = newEraserSize;
-
-    } else {
-        // Se voltar para o pincel
-        setTool('brush');
-        brushSizeSlider.value = lastBrushSize;
-        currentBrush.size = lastBrushSize;
-    }
-});
-
-brushSizeSlider.addEventListener('input', (e) => {
-    currentBrush.size = parseInt(e.target.value);
-    // Atualiza o tamanho original do pincel apenas se a ferramenta não for a borracha
-    if (!toolSwitch.checked) {
-        lastBrushSize = currentBrush.size;
-    }
-});
-
-brushSizeSlider.addEventListener('input', (e) => {
-    currentBrush.size = parseInt(e.target.value);
-    // Atualiza o tamanho original do pincel apenas se a ferramenta não for a borracha
-    if (!toolSwitch.checked) {
-        lastBrushSize = currentBrush.size;
-    }
-});
+            toolSwitch.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    // Mudar para Borracha
+                    setTool('eraser');
+                    lastBrushSize = parseInt(brushSizeSlider.value);
+                    const newEraserSize = Math.min(lastBrushSize * 16, MAX_BRUSH_SIZE);
+                    brushSizeSlider.value = newEraserSize;
+                    currentBrush.size = newEraserSize;
+                } else {
+                    // Voltar para Pincel
+                    setTool('brush');
+                    const savedSize = brushesConfig[currentBrush.type].size;
+                    brushSizeSlider.value = savedSize;
+                    currentBrush.size = savedSize;
+                }
+            });
 
             brushSizeSlider.addEventListener('input', (e) => {
-                                 currentBrush.size = parseInt(e.target.value);
-                                 if (currentTool !== 'selection' && currentTool !== 'bucket' && currentTool !== 'eyedropper') {
-                                     setTool(toolSwitch.checked ? 'eraser' : 'brush');
-                                 }
+                const newSize = parseInt(e.target.value);
+                currentBrush.size = newSize;
+
+                // Salva a configuração de tamanho apenas se estivermos no modo pincel
+                if (!toolSwitch.checked) { // Equivalente a if(currentTool === 'brush')
+                    brushesConfig[currentBrush.type].size = newSize;
+                    lastBrushSize = newSize; // Atualiza para a lógica da borracha
+                }
             });
-          
-          
+            // --- FIM DA LÓGICA CORRIGIDA ---
 
 
+            // --- INÍCIO DA CORREÇÃO DA OPACIDADE ---
+            brushOpacitySlider.addEventListener('input', (e) => {
+                const sliderValue = parseInt(e.target.value);
+                
+                // A lógica anterior calculava a opacidade de forma incorreta.
+                // Esta nova lógica mapeia linearmente o valor do slider (0-100) para a opacidade (0.0-1.0).
+                currentBrush.opacity = sliderValue / 100;
 
-
-// DAQUI PARA BAIXO É O CÓDIGO NOVO COM AJUSTE PARA 99%
-brushOpacitySlider.addEventListener('input', (e) => {
-    const sliderValue = parseInt(e.target.value); // Pega o valor do slider (0 a 100)
-    let newOpacity;
-
-    // A condição agora verifica se o valor é menor ou igual a 99
-    if (sliderValue <= 99) {
-        // --- PARTE 1: Controle Fino (0 a 99 no slider) ---
-        // Mapeia o input [0, 99] para a opacidade [0.05, 0.10]
-
-        // A divisão agora é por 99 para calcular o progresso corretamente nesta faixa maior
-        const progress = sliderValue / 99; 
-        
-        // A fórmula para calcular a opacidade continua a mesma
-        newOpacity = 0.002 + (progress * 0.04); 
-
-    } else {
-        // --- PARTE 2: Salto Final (apenas quando o slider está em 100) ---
-        // Mapeia o input [99, 100] para a opacidade [0.10, 1.0]
-
-        // A divisão agora é por 1 (pois 100 - 99 = 1), o que torna o salto final instantâneo
-        const progress = (sliderValue - 99) / 10; 
-
-        // A fórmula para o salto também permanece a mesma
-        newOpacity = 0.002 + (progress * 0.9);
-    }
-
-    // Define a opacidade do pincel com o valor calculado
-    currentBrush.opacity = newOpacity;
-});
-// ATÉ AQUI
-
-
+                // Salva o valor do slider (0-100) na configuração do pincel atual, se não for a borracha
+                if (currentTool === 'brush') {
+                    brushesConfig[currentBrush.type].opacityValue = sliderValue;
+                }
+            });
+            // --- FIM DA CORREÇÃO DA OPACIDADE ---
 
             colorPickerContainer.addEventListener('click', () => {
                 colorPicker.click();
@@ -1687,37 +1677,37 @@ brushOpacitySlider.addEventListener('input', (e) => {
             });
             
            duplicateFrameBtn.addEventListener('click', () => {
-    stampSelection();
-    if (timelineFramesData.length > 0) {
-        const currentFrame = timelineFramesData[currentFrameIndex];
-        const newFrame = { layers: [] };
-        
-        currentFrame.layers.forEach((layer) => {
-            const newImageData = new ImageData(
-                new Uint8ClampedArray(layer.history[layer.historyIndex].data),
-                layer.history[layer.historyIndex].width,
-                layer.history[layer.historyIndex].height
-            );
-            
-            const newLayer = {
-                name: layer.isBackground ? 'Background' : `Camada ${newFrame.layers.filter(l => !l.isBackground).length + 1}`,
-                visible: layer.visible,
-                opacity: layer.opacity,
-                isBackground: layer.isBackground,
-                history: [newImageData],
-                historyIndex: 0
-            };
-            
-            newFrame.layers.push(newLayer);
-        });
+   stampSelection();
+   if (timelineFramesData.length > 0) {
+       const currentFrame = timelineFramesData[currentFrameIndex];
+       const newFrame = { layers: [] };
+       
+       currentFrame.layers.forEach((layer) => {
+           const newImageData = new ImageData(
+               new Uint8ClampedArray(layer.history[layer.historyIndex].data),
+               layer.history[layer.historyIndex].width,
+               layer.history[layer.historyIndex].height
+           );
+           
+           const newLayer = {
+               name: layer.isBackground ? 'Background' : `Camada ${newFrame.layers.filter(l => !l.isBackground).length + 1}`,
+               visible: layer.visible,
+               opacity: layer.opacity,
+               isBackground: layer.isBackground,
+               history: [newImageData],
+               historyIndex: 0
+           };
+           
+           newFrame.layers.push(newLayer);
+       });
 
-        timelineFramesData.splice(currentFrameIndex + 1, 0, newFrame);
-        currentFrameIndex++;
-        currentLayerIndex = 1; 
-        renderCanvas();
-        updateUI();
-        updateTimelineWidths();
-    }
+       timelineFramesData.splice(currentFrameIndex + 1, 0, newFrame);
+       currentFrameIndex++;
+       currentLayerIndex = 1; 
+       renderCanvas();
+       updateUI();
+       updateTimelineWidths();
+   }
 });
 
             deleteFrameBtn.addEventListener('click', () => {
@@ -1901,8 +1891,7 @@ brushOpacitySlider.addEventListener('input', (e) => {
                 { type: 'normal', name: 'Normal' },
                 { type: 'pencil', name: '6B' },
                 { type: 'airbrush', name: 'Luz' },
-                { type: 'spray', name: 'Spray' },
-                { type: 'oil', name: 'Tinta a Óleo' }
+                { type: 'spray', name: 'Spray' }
             ];
 
             brushes.forEach(brush => {
@@ -1930,7 +1919,12 @@ brushOpacitySlider.addEventListener('input', (e) => {
                         b.classList.remove('bg-indigo-900/50', 'border', 'border-indigo-500');
                     });
                     btn.classList.add('bg-indigo-900/50', 'border', 'border-indigo-500');
-                    currentBrush.type = btn.dataset.brushType;
+                    
+                    // --- CORREÇÃO APLICADA ---
+                    const brushType = btn.dataset.brushType;
+                    currentBrush.type = brushType;
+                    updateBrushUI(brushType); // Atualiza os sliders com os valores salvos
+                    // --- FIM DA CORREÇÃO ---
                 }
             });
 
@@ -2347,7 +2341,7 @@ brushOpacitySlider.addEventListener('input', (e) => {
                     
                     const serializableFrames = JSON.parse(JSON.stringify(timelineFramesData, (key, value) => {
                         if (value instanceof ImageData) {
-                             return { _isImageData: true, width: value.width, height: value.height };
+                                return { _isImageData: true, width: value.width, height: value.height };
                         }
                         return value;
                     }));
@@ -2778,8 +2772,8 @@ brushOpacitySlider.addEventListener('input', (e) => {
 
 
             fileMenuBtn.addEventListener('click', (e) => {
-                           e.stopPropagation();
-                           fileMenu.classList.toggle('hidden');
+                                        e.stopPropagation();
+                                        fileMenu.classList.toggle('hidden');
             });
             
             exportPngBtn.addEventListener('click', () => { exportAsPngSequence(); fileMenu.classList.add('hidden'); });
@@ -2898,9 +2892,11 @@ brushOpacitySlider.addEventListener('input', (e) => {
             setupInitialLayers();
             updateUI();
             renderCanvas();
+            updateBrushUI('normal'); // Inicializa a UI com os valores do pincel padrão
             animate();
         });
     </script>
 </body>
 </html>
+
 
